@@ -36,21 +36,21 @@ fn _partition(len: usize) -> u64 {
 }
 
 #[derive(Clone, Debug)]
-struct Partitioning {
+struct Layout {
     orders: u64,
     size: usize,
 }
 
-impl Partitioning {
+impl Layout {
     pub fn new() -> Self {
-        Partitioning {
+        Layout {
             orders: 0,
             size: 0,
         }
     }
 
     pub fn new_from_len(size: usize) -> Self {
-        Partitioning {
+        Layout {
             orders: _partition(size),
             size: size,
         }
@@ -77,8 +77,8 @@ impl Partitioning {
         }
     }
 
-    pub fn iter(&self) -> PartitioningIterator {
-        PartitioningIterator {
+    pub fn iter(&self) -> SubheapIterator {
+        SubheapIterator {
             orders: _partition(self.size),
             root: self.size - 1,
         }
@@ -86,12 +86,12 @@ impl Partitioning {
 }
 
 #[derive(Clone)]
-struct PartitioningIterator {
+struct SubheapIterator {
     orders: u64,
     root: usize,
 }
 
-impl Iterator for PartitioningIterator {
+impl Iterator for SubheapIterator {
     type Item = (usize, u32);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -120,7 +120,7 @@ impl Iterator for PartitioningIterator {
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
-    orders: Partitioning,
+    layout: Layout,
 }
 
 
@@ -128,7 +128,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     pub fn new() -> Self {
         LeonardoHeap {
             data: vec![],
-            orders: Partitioning::new(),
+            layout: Layout::new(),
         }
     }
 
@@ -163,10 +163,10 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
-    fn restring(&mut self, mut orders_iter: PartitioningIterator) {
-        let (mut this_root, _) = orders_iter.next().unwrap();
+    fn restring(&mut self, mut subheap_iter: SubheapIterator) {
+        let (mut this_root, _) = subheap_iter.next().unwrap();
 
-        for (next_root, next_order) in orders_iter {
+        for (next_root, next_order) in subheap_iter {
             if self.data[next_root] <= self.data[this_root] {
                 break;
             }
@@ -181,16 +181,16 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
     pub fn push(&mut self, item: T) {
         self.data.push(item);
-        self.orders.push();
-        // TODO need to copy orders to keep the borrow checker happy.  Figure
+        self.layout.push();
+        // TODO need to copy layout to keep the borrow checker happy.  Figure
         // out a way to avoid this.
-        let orders = self.orders.clone();
+        let layout = self.layout.clone();
 
         // TODO pull from layout
         let new_root = self.data.len() - 1;
 
-        self.sift_down(new_root, orders.lowest_order().unwrap());
-        self.restring(orders.iter());
+        self.sift_down(new_root, layout.lowest_order().unwrap());
+        self.restring(layout.iter());
     }
 
     pub fn peek(&self) -> Option<&T> {
@@ -198,32 +198,33 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        match self.orders.lowest_order() {
+        match self.layout.lowest_order() {
             Some(0) | Some(1) => {
-                self.orders.pop();
+                self.layout.pop();
 
                 // TODO should always return Some(...) but might be worth
                 // checking explicitly
                 self.data.pop()
             }
             Some(order) => {
-                self.orders.pop();
+                self.layout.pop();
 
                 // TODO should always return Some(...) but might be worth
                 // checking explicitly
                 let result = self.data.pop();
 
-                if self.orders.lowest_order() == None {
+                if self.layout.lowest_order() == None {
                     return None; // TODO
                 }
 
-                let fst_orders = self.orders.iter();
+                let subheaps_from_fst = self.layout.iter();
 
-                let mut snd_orders = self.orders.iter();
-                snd_orders.next();
+                let mut subheaps_from_snd = self.layout.iter();
+                // consume the first subheap
+                subheaps_from_snd.next();
 
-                self.restring(snd_orders);
-                self.restring(fst_orders);
+                self.restring(subheaps_from_snd);
+                self.restring(subheaps_from_fst);
 
                 return result;
             }
@@ -239,7 +240,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 fn test_sift_down() {
     let mut heap = LeonardoHeap {
         data: vec![3, 2, 1],
-        orders: Partitioning::new_from_len(3),
+        layout: Layout::new_from_len(3),
     };
 
     heap.sift_down(2, 2);
@@ -247,7 +248,7 @@ fn test_sift_down() {
 
     let mut heap = LeonardoHeap {
         data: vec![3, 5, 4],
-        orders: Partitioning::new_from_len(3),
+        layout: Layout::new_from_len(3),
     };
 
     heap.sift_down(2, 2);
