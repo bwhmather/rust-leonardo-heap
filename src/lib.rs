@@ -58,10 +58,15 @@ impl Partitioning {
 
     pub fn push(&mut self) {
         self.size += 1;
+        // TODO update incrementally rather than recalculating
+        self.orders = _partition(self.size);
     }
 
     pub fn pop(&mut self) {
         self.size -= 1;
+        // TODO update incrementally rather than recalculating
+        self.orders = _partition(self.size);
+        // TODO possibly return two exposed subheaps
     }
 
     #[inline]
@@ -115,6 +120,7 @@ impl Iterator for PartitioningIterator {
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
+    orders: Partitioning,
 }
 
 
@@ -122,6 +128,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     pub fn new() -> Self {
         LeonardoHeap {
             data: vec![],
+            orders: Partitioning::new(),
         }
     }
 
@@ -174,10 +181,13 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
     pub fn push(&mut self, item: T) {
         self.data.push(item);
+        self.orders.push();
+        // TODO need to copy orders to keep the borrow checker happy.  Figure
+        // out a way to avoid this.
+        let orders = self.orders.clone();
 
+        // TODO pull from layout
         let new_root = self.data.len() - 1;
-        // TODO self.orders.push()
-        let orders = Partitioning::new_from_len(self.data.len());
 
         self.sift_down(new_root, orders.lowest_order().unwrap());
         self.restring(orders.iter());
@@ -188,30 +198,28 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        let orders = Partitioning::new_from_len(self.data.len());
-
-        match orders.lowest_order() {
+        match self.orders.lowest_order() {
             Some(0) | Some(1) => {
-                // TODO self.orders.pop();
+                self.orders.pop();
+
                 // TODO should always return Some(...) but might be worth
                 // checking explicitly
                 self.data.pop()
             }
             Some(order) => {
+                self.orders.pop();
+
                 // TODO should always return Some(...) but might be worth
                 // checking explicitly
                 let result = self.data.pop();
 
-                // TODO self.orders.pop()
-                let orders = Partitioning::new_from_len(self.data.len());
-
-                if orders.orders == 0 {
+                if self.orders.lowest_order() == None {
                     return None; // TODO
                 }
 
-                let fst_orders = orders.iter();
+                let fst_orders = self.orders.iter();
 
-                let mut snd_orders = orders.iter();
+                let mut snd_orders = self.orders.iter();
                 snd_orders.next();
 
                 self.restring(snd_orders);
@@ -231,6 +239,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 fn test_sift_down() {
     let mut heap = LeonardoHeap {
         data: vec![3, 2, 1],
+        orders: Partitioning::new_from_len(3),
     };
 
     heap.sift_down(2, 2);
@@ -238,6 +247,7 @@ fn test_sift_down() {
 
     let mut heap = LeonardoHeap {
         data: vec![3, 5, 4],
+        orders: Partitioning::new_from_len(3),
     };
 
     heap.sift_down(2, 2);
