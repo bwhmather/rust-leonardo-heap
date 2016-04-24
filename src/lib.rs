@@ -117,6 +117,107 @@ impl Iterator for SubheapIterator {
 }
 
 
+struct SubHeap<'a, T: 'a> {
+    data: &'a [T],
+    order: u32,
+}
+
+
+impl<'a, T: Ord + Debug> SubHeap<'a, T> {
+
+    fn new(data: &[T], order: u32) -> SubHeap<T> {
+        assert_eq!(data.len(), leonardo(order));
+
+        SubHeap {
+            data: data,
+            order: order,
+        }
+    }
+
+    fn value(&self) -> &T {
+        self.data.last().unwrap()
+    }
+
+    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (_, body) = self.data.split_last().unwrap();
+            let (snd_data, fst_data) = body.split_at(leonardo(snd_order));
+
+            Some((
+                SubHeap::new(fst_data, fst_order),
+                SubHeap::new(snd_data, snd_order),
+            ))
+        } else {
+            None
+        }
+    }
+}
+
+
+struct SubHeapMut<'a, T: 'a> {
+    data: &'a mut [T],
+    order: u32,
+}
+
+
+impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
+
+    fn new(data: &mut [T], order: u32) -> SubHeapMut<T> {
+        assert_eq!(data.len(), leonardo(order));
+
+        SubHeapMut {
+            data: data,
+            order: order,
+        }
+    }
+
+    fn value(&self) -> &T {
+        self.data.last().unwrap()
+    }
+
+    fn value_mut(&mut self) -> &mut T {
+        self.data.last_mut().unwrap()
+    }
+
+    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (_, body) = self.data.split_last().unwrap();
+            let (snd_data, fst_data) = body.split_at(leonardo(snd_order));
+
+            Some((
+                SubHeap::new(fst_data, fst_order),
+                SubHeap::new(snd_data, snd_order),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn children_mut(&mut self) -> Option<(SubHeapMut<T>, SubHeapMut<T>)> {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (_, mut body) = self.data.split_last_mut().unwrap();
+            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+
+            Some((
+                SubHeapMut::new(fst_data, fst_order),
+                SubHeapMut::new(snd_data, snd_order),
+            ))
+        } else {
+            None
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
