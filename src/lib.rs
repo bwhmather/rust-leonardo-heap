@@ -116,7 +116,7 @@ impl Iterator for SubheapIterator {
     }
 }
 
-
+#[derive(Clone, Debug)]
 struct SubHeap<'a, T: 'a> {
     data: &'a [T],
     order: u32,
@@ -134,36 +134,45 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
         }
     }
 
-    fn value(&self) -> &T {
-        self.data.last().unwrap()
-    }
-
-    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
+    fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
         if self.order > 2 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
-            let (_, body) = self.data.split_last().unwrap();
+            let (value, body) = self.data.split_last().unwrap();
             let (snd_data, fst_data) = body.split_at(leonardo(snd_order));
 
-            Some((
+            (value, Some((
                 SubHeap::new(fst_data, fst_order),
-                SubHeap::new(snd_data, snd_order),
-            ))
+                SubHeap::new(snd_data, snd_order)))
+            )
         } else {
-            None
+            (self.value(), None)
         }
+    }
+
+    #[inline]
+    fn value(&self) -> &T {
+        self.data.last().unwrap()
+    }
+
+    #[inline]
+    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
+        let (_, children) = self.destructure();
+        return children
     }
 }
 
 
+#[derive(Debug)]
 struct SubHeapMut<'a, T: 'a> {
     data: &'a mut [T],
     order: u32,
 }
 
 
-impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
+impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
+{
 
     fn new(data: &mut [T], order: u32) -> SubHeapMut<T> {
         assert_eq!(data.len(), leonardo(order));
@@ -174,46 +183,118 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
+    fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (value, body) = self.data.split_last().unwrap();
+            let (snd_data, fst_data) = body.split_at(leonardo(snd_order));
+
+            (value, Some((
+                SubHeap::new(fst_data, fst_order),
+                SubHeap::new(snd_data, snd_order)))
+            )
+        } else {
+            (self.value(), None)
+        }
+    }
+
+    fn destructure_mut(&mut self) -> (&mut T, Option<(SubHeapMut<T>, SubHeapMut<T>)>) {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (mut value, mut body) = self.data.split_last_mut().unwrap();
+            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+
+            (value, Some((
+                SubHeapMut::new(fst_data, fst_order),
+                SubHeapMut::new(snd_data, snd_order),
+            )))
+        } else {
+            (self.value_mut(), None)
+        }
+    }
+
+    fn into_components(self) -> (&'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>) {
+        if self.order > 2 {
+            let fst_order = self.order - 2;
+            let snd_order = self.order - 1;
+
+            let (mut value, mut body) = self.data.split_last_mut().unwrap();
+            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+
+            (value, Some((
+                SubHeapMut::new(fst_data, fst_order),
+                SubHeapMut::new(snd_data, snd_order),
+            )))
+        } else {
+            (self.into_value(), None)
+        }
+    }
+
+    #[inline]
     fn value(&self) -> &T {
         self.data.last().unwrap()
     }
 
+    #[inline]
     fn value_mut(&mut self) -> &mut T {
         self.data.last_mut().unwrap()
     }
 
-    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
-        if self.order > 2 {
-            let fst_order = self.order - 2;
-            let snd_order = self.order - 1;
-
-            let (_, body) = self.data.split_last().unwrap();
-            let (snd_data, fst_data) = body.split_at(leonardo(snd_order));
-
-            Some((
-                SubHeap::new(fst_data, fst_order),
-                SubHeap::new(snd_data, snd_order),
-            ))
-        } else {
-            None
-        }
+    #[inline]
+    fn into_value(self) -> &'a mut T {
+        self.data.last_mut().unwrap()
     }
 
+    #[inline]
+    fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
+        let (_, children) = self.destructure();
+        return children
+    }
+
+    #[inline]
     fn children_mut(&mut self) -> Option<(SubHeapMut<T>, SubHeapMut<T>)> {
-        if self.order > 2 {
-            let fst_order = self.order - 2;
-            let snd_order = self.order - 1;
+        let (_, children) = self.destructure_mut();
+        return children
+    }
 
-            let (_, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+    #[inline]
+    fn into_children(self) -> Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)> {
+        let (_, children) = self.into_components();
+        return children
+    }
+}
 
-            Some((
-                SubHeapMut::new(fst_data, fst_order),
-                SubHeapMut::new(snd_data, snd_order),
-            ))
-        } else {
-            None
+
+fn sift_down<T: Ord + Debug>(heap: SubHeapMut<T>) {
+    let mut this_heap = heap;
+
+    loop {
+        let (this_value, children) = this_heap.into_components();
+
+        let mut next_heap = match children {
+            Some((fst_child, snd_child)) => {
+                if fst_child.value() > snd_child.value() {
+                    fst_child
+                } else {
+                    snd_child
+                }
+            }
+            None => {
+                break;
+            }
+        };
+
+        if &*this_value >= next_heap.value() {
+            break;
         }
+
+        std::mem::swap(this_value, next_heap.value_mut());
+
+        this_heap = next_heap;
     }
 }
 
