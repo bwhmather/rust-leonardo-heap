@@ -274,6 +274,7 @@ fn sift_down<T: Ord + Debug>(heap: SubHeapMut<T>) {
 
     loop {
         let (this_value, children) = this_heap.into_components();
+        println!("value: {:?}, children: {:?}", this_value, children);
 
         // No children.  We have reached the bottom of the heap
         if children.is_none() {
@@ -303,6 +304,8 @@ fn sift_down<T: Ord + Debug>(heap: SubHeapMut<T>) {
 }
 
 
+
+
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
@@ -318,37 +321,6 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
-    fn sift_down(&mut self, root: usize, order: u32) {
-        let mut pos = root;
-        let mut order = order;
-
-        while order > 1 {
-            let fst_child_pos = pos - 1;
-            let snd_child_pos = pos - 1 - leonardo(order - 2);
-
-            // If the root is greater than both children we can stop
-            if (self.data[pos] >= self.data[fst_child_pos]) &&
-               (self.data[pos] >= self.data[snd_child_pos]) {
-                break;
-            }
-
-            // Swap the parent with the largest child.  Prefer the furthest
-            // child if both children are the same as doing so makes the array
-            // slightly more sorted.
-            if self.data[fst_child_pos] > self.data[snd_child_pos] {
-                self.data.swap(pos, fst_child_pos);
-
-                pos = fst_child_pos;
-                order -= 2;
-            } else {
-                self.data.swap(pos, snd_child_pos);
-
-                pos = snd_child_pos;
-                order -= 1;
-            }
-        }
-    }
-
     fn restring(&mut self, mut subheap_iter: SubheapIterator) {
         let (mut this_root, _) = subheap_iter.next().unwrap();
 
@@ -359,7 +331,13 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
             self.data.swap(next_root, this_root);
 
-            self.sift_down(next_root, next_order);
+            //self.sift_down(next_root, next_order);
+            sift_down(SubHeapMut::new(
+                &mut self.data[
+                    (1 + next_root - leonardo(next_order))..(1 + next_root)
+                ],
+                next_order
+            ));
 
             this_root = next_root;
         }
@@ -372,10 +350,16 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         // out a way to avoid this.
         let layout = self.layout.clone();
 
-        // TODO pull from layout
+        // TODO skip directly to subheap
         let new_root = self.data.len() - 1;
+        let new_order = layout.lowest_order().unwrap();
 
-        self.sift_down(new_root, layout.lowest_order().unwrap());
+        sift_down(SubHeapMut::new(
+            &mut self.data[
+                (1 + new_root - leonardo(new_order))..(1 + new_root)
+            ],
+            new_order
+        ));
         self.restring(layout.iter());
     }
 
@@ -424,21 +408,19 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
 #[test]
 fn test_sift_down() {
-    let mut heap = LeonardoHeap {
-        data: vec![3, 2, 1],
-        layout: Layout::new_from_len(3),
-    };
+    let mut heap = vec![3, 2, 1];
+    {
+        let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
+        sift_down(subheap);
+    }
+    assert_eq!(heap, vec![1, 2, 3]);
 
-    heap.sift_down(2, 2);
-    assert_eq!(heap.data, vec![1, 2, 3]);
-
-    let mut heap = LeonardoHeap {
-        data: vec![3, 5, 4],
-        layout: Layout::new_from_len(3),
-    };
-
-    heap.sift_down(2, 2);
-    assert_eq!(heap.data, vec![3, 4, 5]);
+    let mut heap = vec![3, 5, 4];
+    {
+        let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
+        sift_down(subheap);
+    }
+    assert_eq!(heap, vec![3, 4, 5]);
 }
 
 
