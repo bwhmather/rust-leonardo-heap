@@ -275,23 +275,27 @@ fn sift_down<T: Ord + Debug>(heap: SubHeapMut<T>) {
     loop {
         let (this_value, children) = this_heap.into_components();
 
-        let mut next_heap = match children {
-            Some((fst_child, snd_child)) => {
-                if fst_child.value() > snd_child.value() {
-                    fst_child
-                } else {
-                    snd_child
-                }
-            }
-            None => {
-                break;
-            }
+        // No children.  We have reached the bottom of the heap
+        if children.is_none() {
+            break;
+        }
+
+        let (fst_child, snd_child) = children.unwrap();
+
+        // Find the largest child.  Prefer the furthest child if both children
+        // are the same as doing so makes the array slightly more sorted.
+        let mut next_heap = if fst_child.value() > snd_child.value() {
+            fst_child
+        } else {
+            snd_child
         };
 
+        // The heap property is satisfied.  No need to do anything else
         if &*this_value >= next_heap.value() {
             break;
         }
 
+        // Seap the value of the parent with the value of the largest child.
         std::mem::swap(this_value, next_heap.value_mut());
 
         this_heap = next_heap;
