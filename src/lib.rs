@@ -77,8 +77,8 @@ impl Layout {
         }
     }
 
-    pub fn iter(&self) -> SubheapIterator {
-        SubheapIterator {
+    pub fn iter(&self) -> LayoutIterator {
+        LayoutIterator {
             orders: _partition(self.size),
             root: self.size - 1,
         }
@@ -86,12 +86,12 @@ impl Layout {
 }
 
 #[derive(Clone)]
-struct SubheapIterator {
+struct LayoutIterator {
     orders: u64,
     root: usize,
 }
 
-impl Iterator for SubheapIterator {
+impl Iterator for LayoutIterator {
     type Item = (usize, u32);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -321,7 +321,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
-    fn restring(&mut self, mut subheap_iter: SubheapIterator) {
+    fn restring(&mut self, mut subheap_iter: LayoutIterator) {
         let (mut this_root, _) = subheap_iter.next().unwrap();
 
         for (next_root, next_order) in subheap_iter {
