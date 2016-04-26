@@ -135,7 +135,7 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
     }
 
     fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
-        if self.order > 2 {
+        if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
@@ -184,7 +184,7 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
     }
 
     fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
-        if self.order > 2 {
+        if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
@@ -201,7 +201,7 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
     }
 
     fn destructure_mut(&mut self) -> (&mut T, Option<(SubHeapMut<T>, SubHeapMut<T>)>) {
-        if self.order > 2 {
+        if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
@@ -218,7 +218,7 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
     }
 
     fn into_components(self) -> (&'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>) {
-        if self.order > 2 {
+        if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
