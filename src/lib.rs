@@ -329,6 +329,61 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
 }
 
 
+#[derive(Debug)]
+struct SubHeapIterMut<'a, T: 'a> {
+    heap: &'a mut [T],
+    next: usize,
+    orders: u64,
+}
+
+
+impl<'a, T : Ord + Debug> Iterator for SubHeapIterMut<'a, T>
+{
+    type Item = SubHeapMut<'a, T>;
+
+    fn next(&mut self) -> Option<SubHeapMut<'a, T>> {
+        if self.orders.count_ones() != 0 {
+            let order = self.orders.trailing_zeros();
+            let this = self.next;
+
+            self.orders ^= 1 << order;
+            self.next -= leonardo(order);
+
+            let ptr = self.heap.as_mut_ptr();
+
+            // TODO
+            let subheap_data = unsafe {
+                std::slice::from_raw_parts_mut(ptr.offset(self.next as isize), leonardo(order))
+            };
+
+            Some(SubHeapMut::new(subheap_data, order))
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let ones = self.orders.count_ones() as usize;
+        (ones, Some(ones))
+    }
+}
+
+
+fn restring<'a, T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<'a, T>) {
+    let mut this_subheap = subheap_iter.next().unwrap();
+
+    for mut next_subheap in subheap_iter {
+        if next_subheap.value() <= this_subheap.value() {
+            break;
+        }
+
+        std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
+
+        sift_down(&mut next_subheap);
+
+        this_subheap = next_subheap;
+    }
+}
 
 
 #[derive(Debug)]
@@ -346,25 +401,11 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
-    fn restring(&mut self, mut subheap_iter: LayoutIterator) {
-        let (mut this_root, _) = subheap_iter.next().unwrap();
-
-        for (next_root, next_order) in subheap_iter {
-            if self.data[next_root] <= self.data[this_root] {
-                break;
-            }
-
-            self.data.swap(next_root, this_root);
-
-            //self.sift_down(next_root, next_order);
-            sift_down(&mut SubHeapMut::new(
-                &mut self.data[
-                    (1 + next_root - leonardo(next_order))..(1 + next_root)
-                ],
-                next_order
-            ));
-
-            this_root = next_root;
+    fn iter_subheaps(&mut self) -> SubHeapIterMut<T> {
+        SubHeapIterMut {
+            heap: &mut self.data,
+            next: self.layout.size,
+            orders: _partition(self.layout.size),
         }
     }
 
@@ -385,7 +426,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
             ],
             new_order
         ));
-        self.restring(layout.iter());
+
+        restring(self.iter_subheaps());
     }
 
     pub fn peek(&self) -> Option<&T> {
@@ -412,14 +454,18 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
                     return None; // TODO
                 }
 
-                let subheaps_from_fst = self.layout.iter();
 
-                let mut subheaps_from_snd = self.layout.iter();
-                // consume the first subheap
-                subheaps_from_snd.next();
+                {
+                    let mut subheaps_from_snd = self.iter_subheaps();
+                    // consume the first subheap
+                    subheaps_from_snd.next();
 
-                self.restring(subheaps_from_snd);
-                self.restring(subheaps_from_fst);
+                    restring(subheaps_from_snd);
+                }
+                {
+                    let subheaps_from_fst = self.iter_subheaps();
+                    restring(subheaps_from_fst);
+                }
 
                 return result;
             }
