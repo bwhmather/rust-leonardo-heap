@@ -269,12 +269,37 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
 }
 
 
-fn sift_down<T: Ord + Debug>(heap: SubHeapMut<T>) {
-    let mut this_heap = heap;
+fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
+    // TODO de-duplicate and replace other implementation
+    let (this_value, children) = heap.destructure_mut();
+
+    // No children.  We have reached the bottom of the heap
+    if children.is_none() {
+        return;
+    }
+
+    let (fst_child, snd_child) = children.unwrap();
+
+    // Find the largest child.  Prefer the furthest child if both children
+    // are the same as doing so makes the array slightly more sorted.
+    let mut next_heap = if fst_child.value() > snd_child.value() {
+        fst_child
+    } else {
+        snd_child
+    };
+
+    // The heap property is satisfied.  No need to do anything else
+    if &*this_value >= next_heap.value() {
+        return;
+    }
+
+    // Seap the value of the parent with the value of the largest child.
+    std::mem::swap(this_value, next_heap.value_mut());
+
+    let mut this_heap = next_heap;
 
     loop {
         let (this_value, children) = this_heap.into_components();
-        println!("value: {:?}, children: {:?}", this_value, children);
 
         // No children.  We have reached the bottom of the heap
         if children.is_none() {
@@ -332,7 +357,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
             self.data.swap(next_root, this_root);
 
             //self.sift_down(next_root, next_order);
-            sift_down(SubHeapMut::new(
+            sift_down(&mut SubHeapMut::new(
                 &mut self.data[
                     (1 + next_root - leonardo(next_order))..(1 + next_root)
                 ],
@@ -354,7 +379,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         let new_root = self.data.len() - 1;
         let new_order = layout.lowest_order().unwrap();
 
-        sift_down(SubHeapMut::new(
+        sift_down(&mut SubHeapMut::new(
             &mut self.data[
                 (1 + new_root - leonardo(new_order))..(1 + new_root)
             ],
@@ -411,14 +436,14 @@ fn test_sift_down() {
     let mut heap = vec![3, 2, 1];
     {
         let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-        sift_down(subheap);
+        sift_down(&mut subheap);
     }
     assert_eq!(heap, vec![1, 2, 3]);
 
     let mut heap = vec![3, 5, 4];
     {
         let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-        sift_down(subheap);
+        sift_down(&mut subheap);
     }
     assert_eq!(heap, vec![3, 4, 5]);
 }
