@@ -171,21 +171,6 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
 }
 
 
-fn _partition(len: usize) -> u64 {
-    let mut orders = 0;
-    let mut remaining = len;
-
-    for order in (0..63).rev() {
-        if leonardo(order) <= remaining {
-            remaining -= leonardo(order);
-            orders |= 1 << order;
-        }
-    }
-
-    return orders;
-}
-
-
 #[derive(Clone, Debug)]
 struct Layout {
     orders: u64,
@@ -202,23 +187,66 @@ impl Layout {
     }
 
     pub fn new_from_len(size: usize) -> Self {
+        let mut orders = 0;
+        let mut remaining = size;
+
+        for order in (0..63).rev() {
+            if leonardo(order) <= remaining {
+                remaining -= leonardo(order);
+                orders |= 1 << order;
+            }
+        }
+
         Layout {
-            orders: _partition(size),
+            orders: orders,
             size: size,
         }
     }
 
     pub fn push(&mut self) {
         self.size += 1;
-        // TODO update incrementally rather than recalculating
-        self.orders = _partition(self.size);
+
+        match self.lowest_order() {
+            Some(lowest_order) => {
+                let mergeable_mask : u64 = 3 << lowest_order;
+
+                if (mergeable_mask & self.orders) == mergeable_mask {
+                    // lowest two sub-heaps are adjacent and car be merged
+                    // Clear the two lowest orders
+                    self.orders &= !mergeable_mask;
+
+                    // Replace them with the next order up
+                    self.orders |= 1 << (lowest_order + 2);
+                } else if lowest_order == 1 {
+                    self.orders |= 1;
+                } else {
+                    self.orders |= 2;
+                }
+            }
+            None => {
+                self.orders |= 2;
+            }
+        }
     }
 
     pub fn pop(&mut self) {
         self.size -= 1;
-        // TODO update incrementally rather than recalculating
-        self.orders = _partition(self.size);
-        // TODO possibly return two exposed subheaps
+
+        match self.lowest_order() {
+            Some(lowest_order) => {
+                // Clear the order
+                let mask : u64 = 1 << lowest_order;
+                self.orders &= !mask;
+
+                // If the order is not zero or one (the single element orders)
+                // then we need to split it into two heaps of size n-1 and n-2
+                if lowest_order != 0 && lowest_order != 1 {
+                    let mask : u64 = 3 << lowest_order - 2;
+                    self.orders |= mask;
+                }
+            }
+            None => {}
+        }
     }
 
     #[inline]
@@ -231,9 +259,10 @@ impl Layout {
 
     pub fn iter<'a, T : Ord + Debug>(&self, data : &'a mut [T]) -> SubHeapIterMut<'a, T> {
         assert_eq!(data.len(), self.size);
+
         SubHeapIterMut {
             heap: data,
-            orders: _partition(self.size),
+            orders: self.orders,
         }
     }
 }
