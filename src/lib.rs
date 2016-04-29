@@ -29,7 +29,6 @@ struct SubHeap<'a, T: 'a> {
 
 
 impl<'a, T: Ord + Debug> SubHeap<'a, T> {
-
     fn new(data: &[T], order: u32) -> SubHeap<T> {
         assert_eq!(data.len(), leonardo(order));
 
@@ -76,9 +75,7 @@ struct SubHeapMut<'a, T: 'a> {
 }
 
 
-impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
-{
-
+impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
     fn new(data: &mut [T], order: u32) -> SubHeapMut<T> {
         assert_eq!(data.len(), leonardo(order));
 
@@ -402,7 +399,6 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
                     return None; // TODO
                 }
 
-
                 {
                     let mut subheaps_from_snd = self.iter_subheaps();
                     // consume the first subheap
@@ -410,6 +406,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
                     restring(subheaps_from_snd);
                 }
+
                 {
                     let subheaps_from_fst = self.iter_subheaps();
                     restring(subheaps_from_fst);
@@ -454,6 +451,7 @@ fn test_restring() {
     //assert_eq!(heap.data, vec![3, 4]);
 }
 
+
 #[test]
 fn test_push_pop() {
     let mut heap = LeonardoHeap::new();
@@ -467,6 +465,7 @@ fn test_push_pop() {
     assert_eq!(heap.pop(), Some(2));
     assert_eq!(heap.pop(), Some(1));
 }
+
 
 #[test]
 fn test_sort_random() {
