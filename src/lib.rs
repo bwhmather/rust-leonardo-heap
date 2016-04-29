@@ -21,64 +21,6 @@ fn leonardo(order: u32) -> usize {
 }
 
 
-fn _partition(len: usize) -> u64 {
-    let mut orders = 0;
-    let mut remaining = len;
-
-    for order in (0..63).rev() {
-        if leonardo(order) <= remaining {
-            remaining -= leonardo(order);
-            orders |= 1 << order;
-        }
-    }
-
-    return orders;
-}
-
-#[derive(Clone, Debug)]
-struct Layout {
-    orders: u64,
-    size: usize,
-}
-
-impl Layout {
-    pub fn new() -> Self {
-        Layout {
-            orders: 0,
-            size: 0,
-        }
-    }
-
-    pub fn new_from_len(size: usize) -> Self {
-        Layout {
-            orders: _partition(size),
-            size: size,
-        }
-    }
-
-    pub fn push(&mut self) {
-        self.size += 1;
-        // TODO update incrementally rather than recalculating
-        self.orders = _partition(self.size);
-    }
-
-    pub fn pop(&mut self) {
-        self.size -= 1;
-        // TODO update incrementally rather than recalculating
-        self.orders = _partition(self.size);
-        // TODO possibly return two exposed subheaps
-    }
-
-    #[inline]
-    pub fn lowest_order(&self) -> Option<u32> {
-        match self.orders.trailing_zeros() {
-            64 => None,
-            n => Some(n),
-        }
-    }
-}
-
-
 #[derive(Clone, Debug)]
 struct SubHeap<'a, T: 'a> {
     data: &'a [T],
@@ -232,39 +174,61 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
 }
 
 
-fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
-    let (mut this_value, mut children) = heap.destructure_mut();
+fn _partition(len: usize) -> u64 {
+    let mut orders = 0;
+    let mut remaining = len;
 
-    loop {
-        // No children.  We have reached the bottom of the heap
-        if children.is_none() {
-            break;
+    for order in (0..63).rev() {
+        if leonardo(order) <= remaining {
+            remaining -= leonardo(order);
+            orders |= 1 << order;
         }
+    }
 
-        let (fst_child, snd_child) = children.unwrap();
+    return orders;
+}
 
-        // Find the largest child.  Prefer the furthest child if both children
-        // are the same as doing so makes the array slightly more sorted.
-        let mut next_heap = if fst_child.value() > snd_child.value() {
-            fst_child
-        } else {
-            snd_child
-        };
 
-        // The heap property is satisfied.  No need to do anything else
-        if &*this_value >= next_heap.value() {
-            break;
+#[derive(Clone, Debug)]
+struct Layout {
+    orders: u64,
+    size: usize,
+}
+
+
+impl Layout {
+    pub fn new() -> Self {
+        Layout {
+            orders: 0,
+            size: 0,
         }
+    }
 
-        // Seap the value of the parent with the value of the largest child.
-        std::mem::swap(this_value, next_heap.value_mut());
+    pub fn new_from_len(size: usize) -> Self {
+        Layout {
+            orders: _partition(size),
+            size: size,
+        }
+    }
 
-        // TODO there has to be a better pattern for unpacking to existing vars
-        match next_heap.into_components() {
-            (v, n) => {
-                this_value = v;
-                children = n;
-            }
+    pub fn push(&mut self) {
+        self.size += 1;
+        // TODO update incrementally rather than recalculating
+        self.orders = _partition(self.size);
+    }
+
+    pub fn pop(&mut self) {
+        self.size -= 1;
+        // TODO update incrementally rather than recalculating
+        self.orders = _partition(self.size);
+        // TODO possibly return two exposed subheaps
+    }
+
+    #[inline]
+    pub fn lowest_order(&self) -> Option<u32> {
+        match self.orders.trailing_zeros() {
+            64 => None,
+            n => Some(n),
         }
     }
 }
@@ -306,6 +270,44 @@ impl<'a, T : Ord + Debug> Iterator for SubHeapIterMut<'a, T>
     fn size_hint(&self) -> (usize, Option<usize>) {
         let ones = self.orders.count_ones() as usize;
         (ones, Some(ones))
+    }
+}
+
+
+fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
+    let (mut this_value, mut children) = heap.destructure_mut();
+
+    loop {
+        // No children.  We have reached the bottom of the heap
+        if children.is_none() {
+            break;
+        }
+
+        let (fst_child, snd_child) = children.unwrap();
+
+        // Find the largest child.  Prefer the furthest child if both children
+        // are the same as doing so makes the array slightly more sorted.
+        let mut next_heap = if fst_child.value() > snd_child.value() {
+            fst_child
+        } else {
+            snd_child
+        };
+
+        // The heap property is satisfied.  No need to do anything else
+        if &*this_value >= next_heap.value() {
+            break;
+        }
+
+        // Seap the value of the parent with the value of the largest child.
+        std::mem::swap(this_value, next_heap.value_mut());
+
+        // TODO there has to be a better pattern for unpacking to existing vars
+        match next_heap.into_components() {
+            (v, n) => {
+                this_value = v;
+                children = n;
+            }
+        }
     }
 }
 
