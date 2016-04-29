@@ -76,45 +76,8 @@ impl Layout {
             n => Some(n),
         }
     }
-
-    pub fn iter(&self) -> LayoutIterator {
-        LayoutIterator {
-            orders: _partition(self.size),
-            root: self.size - 1,
-        }
-    }
 }
 
-#[derive(Clone)]
-struct LayoutIterator {
-    orders: u64,
-    root: usize,
-}
-
-impl Iterator for LayoutIterator {
-    type Item = (usize, u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.orders.count_ones() != 0 {
-            let order = self.orders.trailing_zeros();
-            let root = self.root;
-
-            self.orders ^= 1 << order;
-            if self.orders != 0 {
-                self.root -= leonardo(order);
-            }
-
-            Some((root, order))
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let ones = self.orders.count_ones() as usize;
-        (ones, Some(ones))
-    }
-}
 
 #[derive(Clone, Debug)]
 struct SubHeap<'a, T: 'a> {
