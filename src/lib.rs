@@ -270,37 +270,9 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T>
 
 
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
-    // TODO de-duplicate and replace other implementation
-    let (this_value, children) = heap.destructure_mut();
-
-    // No children.  We have reached the bottom of the heap
-    if children.is_none() {
-        return;
-    }
-
-    let (fst_child, snd_child) = children.unwrap();
-
-    // Find the largest child.  Prefer the furthest child if both children
-    // are the same as doing so makes the array slightly more sorted.
-    let mut next_heap = if fst_child.value() > snd_child.value() {
-        fst_child
-    } else {
-        snd_child
-    };
-
-    // The heap property is satisfied.  No need to do anything else
-    if &*this_value >= next_heap.value() {
-        return;
-    }
-
-    // Seap the value of the parent with the value of the largest child.
-    std::mem::swap(this_value, next_heap.value_mut());
-
-    let mut this_heap = next_heap;
+    let (mut this_value, mut children) = heap.destructure_mut();
 
     loop {
-        let (this_value, children) = this_heap.into_components();
-
         // No children.  We have reached the bottom of the heap
         if children.is_none() {
             break;
@@ -324,7 +296,13 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
         // Seap the value of the parent with the value of the largest child.
         std::mem::swap(this_value, next_heap.value_mut());
 
-        this_heap = next_heap;
+        // TODO there has to be a better pattern for unpacking to existing vars
+        match next_heap.into_components() {
+            (v, n) => {
+                this_value = v;
+                children = n;
+            }
+        }
     }
 }
 
