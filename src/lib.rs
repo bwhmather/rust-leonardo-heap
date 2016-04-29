@@ -231,6 +231,15 @@ impl Layout {
             n => Some(n),
         }
     }
+
+    pub fn iter<'a, T : Ord + Debug>(&self, data : &'a mut [T]) -> SubHeapIterMut<'a, T> {
+        assert_eq!(data.len(), self.size);
+        SubHeapIterMut {
+            heap: data,
+            next: self.size,
+            orders: _partition(self.size),
+        }
+    }
 }
 
 
@@ -345,11 +354,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     }
 
     fn iter_subheaps(&mut self) -> SubHeapIterMut<T> {
-        SubHeapIterMut {
-            heap: &mut self.data,
-            next: self.layout.size,
-            orders: _partition(self.layout.size),
-        }
+       self.layout.iter(&mut self.data)
     }
 
     pub fn push(&mut self, item: T) {
