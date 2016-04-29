@@ -233,7 +233,6 @@ impl Layout {
         assert_eq!(data.len(), self.size);
         SubHeapIterMut {
             heap: data,
-            next: self.size,
             orders: _partition(self.size),
         }
     }
@@ -243,7 +242,6 @@ impl Layout {
 #[derive(Debug)]
 struct SubHeapIterMut<'a, T: 'a> {
     heap: &'a mut [T],
-    next: usize,
     orders: u64,
 }
 
@@ -253,19 +251,30 @@ impl<'a, T : Ord + Debug> Iterator for SubHeapIterMut<'a, T>
     type Item = SubHeapMut<'a, T>;
 
     fn next(&mut self) -> Option<SubHeapMut<'a, T>> {
-        if self.orders.count_ones() != 0 {
+        if self.orders != 0 {
+            // Records and remove the first order from the font of the bitset
+            // This is the order of the sub-heap at the start of the heap
             let order = self.orders.trailing_zeros();
-            let this = self.next;
-
             self.orders ^= 1 << order;
-            self.next -= leonardo(order);
 
-            let ptr = self.heap.as_mut_ptr();
+            // We need to pre-calculate the length to get around the fact that
+            // the borrow checker can't yet handle borrowing in for only as
+            // long as is needed to calculate the argument to a function
+            let heap_len = self.heap.len();
 
-            // TODO
-            let subheap_data = unsafe {
-                std::slice::from_raw_parts_mut(ptr.offset(self.next as isize), leonardo(order))
-            };
+            // In order to avoid having more than one mutable reference to the
+            // heap at any one time,we have to temporarily replace it in self
+            // with a placeholder value.
+            let mut heap_data = std::mem::replace(&mut self.heap, &mut []);
+
+            // Split the heap into the part belonging to this sub-heap and all
+            // of the rest
+            let (mut rest_data, mut subheap_data) = heap_data.split_at_mut(
+                heap_len - leonardo(order)
+            );
+
+            // Store what's left of the heap back in self
+            self.heap = rest_data;
 
             Some(SubHeapMut::new(subheap_data, order))
         } else {
