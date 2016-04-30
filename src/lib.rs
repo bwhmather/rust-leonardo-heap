@@ -1,10 +1,8 @@
-extern crate rand;
 
 mod leonardo;
 mod subheap;
 mod layout;
 
-use rand::Rng;
 use std::fmt::Debug;
 
 use leonardo::leonardo;
@@ -141,78 +139,88 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 }
 
 
-#[test]
-fn test_sift_down() {
-    let mut heap = vec![3, 2, 1];
-    {
-        let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-        sift_down(&mut subheap);
-    }
-    assert_eq!(heap, vec![1, 2, 3]);
+#[cfg(test)]
+mod tests {
+    extern crate rand;
 
-    let mut heap = vec![3, 5, 4];
-    {
-        let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-        sift_down(&mut subheap);
-    }
-    assert_eq!(heap, vec![3, 4, 5]);
-}
+    use self::rand::Rng;
 
+    use subheap::SubHeapMut;
+    use {LeonardoHeap, restring, sift_down};
 
-#[test]
-fn test_restring() {
-    //let mut heap = LeonardoHeap {
-    //    data: vec![4, 3],
-    //};
+    #[test]
+    fn test_sift_down() {
+        let mut heap = vec![3, 2, 1];
+        {
+            let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
+            sift_down(&mut subheap);
+        }
+        assert_eq!(heap, vec![1, 2, 3]);
 
-    //heap.restring(1, BitSet::from_bytes(&[0b11000000]));
-
-    //assert_eq!(heap.data, vec![3, 4]);
-}
-
-
-#[test]
-fn test_push_pop() {
-    let mut heap = LeonardoHeap::new();
-    heap.push(4);
-    heap.push(1);
-    heap.push(2);
-    heap.push(3);
-
-    assert_eq!(heap.pop(), Some(4));
-    assert_eq!(heap.pop(), Some(3));
-    assert_eq!(heap.pop(), Some(2));
-    assert_eq!(heap.pop(), Some(1));
-}
-
-
-#[test]
-fn test_sort_random() {
-    let mut rng = rand::thread_rng();
-
-    let mut inputs: Vec<i32> = Vec::new();
-    for _ in 0..200 {
-        inputs.push(rng.gen());
+        let mut heap = vec![3, 5, 4];
+        {
+            let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
+            sift_down(&mut subheap);
+        }
+        assert_eq!(heap, vec![3, 4, 5]);
     }
 
-    let mut heap = LeonardoHeap::new();
-    for input in &inputs {
-        heap.push(input.clone());
+
+    #[test]
+    fn test_restring() {
+        //let mut heap = LeonardoHeap {
+        //    data: vec![4, 3],
+        //};
+
+        //heap.restring(1, BitSet::from_bytes(&[0b11000000]));
+
+        //assert_eq!(heap.data, vec![3, 4]);
     }
 
-    let mut outputs: Vec<i32> = Vec::new();
-    loop {
-        match heap.pop() {
-            Some(output) => {
-                outputs.push(output);
-            }
-            None => {
-                break;
+
+    #[test]
+    fn test_push_pop() {
+        let mut heap = LeonardoHeap::new();
+        heap.push(4);
+        heap.push(1);
+        heap.push(2);
+        heap.push(3);
+
+        assert_eq!(heap.pop(), Some(4));
+        assert_eq!(heap.pop(), Some(3));
+        assert_eq!(heap.pop(), Some(2));
+        assert_eq!(heap.pop(), Some(1));
+    }
+
+
+    #[test]
+    fn test_sort_random() {
+        let mut rng = rand::thread_rng();
+
+        let mut inputs: Vec<i32> = Vec::new();
+        for _ in 0..200 {
+            inputs.push(rng.gen());
+        }
+
+        let mut heap = LeonardoHeap::new();
+        for input in &inputs {
+            heap.push(input.clone());
+        }
+
+        let mut outputs: Vec<i32> = Vec::new();
+        loop {
+            match heap.pop() {
+                Some(output) => {
+                    outputs.push(output);
+                }
+                None => {
+                    break;
+                }
             }
         }
+
+        inputs.sort_by(|a, b| b.cmp(a));
+
+        assert_eq!(outputs, inputs);
     }
-
-    inputs.sort_by(|a, b| b.cmp(a));
-
-    assert_eq!(outputs, inputs);
 }
