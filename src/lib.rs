@@ -89,21 +89,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     pub fn push(&mut self, item: T) {
         self.data.push(item);
         self.layout.push();
-        // TODO need to copy layout to keep the borrow checker happy.  Figure
-        // out a way to avoid this.
-        let layout = self.layout.clone();
 
-        // TODO skip directly to subheap
-        let new_root = self.data.len() - 1;
-        let new_order = layout.lowest_order().unwrap();
-
-        sift_down(&mut SubHeapMut::new(
-            &mut self.data[
-                (1 + new_root - leonardo(new_order))..(1 + new_root)
-            ],
-            new_order
-        ));
-
+        sift_down(&mut self.iter_subheaps().next().unwrap());
         restring(self.iter_subheaps());
     }
 
