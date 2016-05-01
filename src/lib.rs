@@ -102,6 +102,45 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
 
 
 #[derive(Debug)]
+pub struct HeapIterMut<'a, T: 'a> {
+    heap_data: &'a mut [T],
+    layout: Layout,
+}
+
+
+impl<'a, T : Ord + Debug> Iterator for HeapIterMut<'a, T>
+{
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        self.layout.pop();
+
+        if self.heap_data.len() != 0 {
+            // In order to avoid having more than one mutable reference to the
+            // heap at any one time,we have to temporarily replace it in self
+            // with a placeholder value.
+            let mut heap_data = std::mem::replace(&mut self.heap_data, &mut []);
+
+            let (result, rest_data) = heap_data.split_last_mut().unwrap();
+
+            // Store what's left of the heap back in self
+            self.heap_data = rest_data;
+
+            balance_after_pop(self.heap_data, &self.layout);
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.heap_data.len(), Some(self.heap_data.len()))
+    }
+}
+
+
+#[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
     layout: Layout,
@@ -139,6 +178,13 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
         result
     }
+
+    pub fn iter_mut(&mut self) -> HeapIterMut<T> {
+        HeapIterMut {
+            heap_data: self.data.as_mut_slice(),
+            layout: self.layout.clone(),
+        }
+    }
 }
 
 
@@ -149,7 +195,7 @@ mod tests {
     use self::rand::Rng;
 
     use subheap::SubHeapMut;
-    use {LeonardoHeap, restring, sift_down};
+    use {LeonardoHeap, HeapIterMut, restring, sift_down};
 
     #[test]
     fn test_sift_down() {
@@ -225,5 +271,25 @@ mod tests {
         inputs.sort_by(|a, b| b.cmp(a));
 
         assert_eq!(outputs, inputs);
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut heap = LeonardoHeap::new();
+        heap.push(4);
+        heap.push(1);
+        heap.push(2);
+        heap.push(3);
+
+        let mut heap_iter = heap.iter_mut();
+
+        let mut var = 4;
+        assert_eq!(heap_iter.next(), Some(&mut var));
+        var = 3;
+        assert_eq!(heap_iter.next(), Some(&mut var));
+        var = 2;
+        assert_eq!(heap_iter.next(), Some(&mut var));
+        var = 1;
+        assert_eq!(heap_iter.next(), Some(&mut var));
     }
 }
