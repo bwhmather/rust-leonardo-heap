@@ -64,6 +64,10 @@ impl Layout {
     }
 
     pub fn pop(&mut self) {
+        if self.size == 0 {
+            return;
+        }
+
         self.size -= 1;
 
         match self.lowest_order() {
