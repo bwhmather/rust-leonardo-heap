@@ -48,7 +48,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
 }
 
 
-fn restring<'a, T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<'a, T>) {
+fn restring<T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<T>) {
     let mut this_subheap = subheap_iter.next().unwrap();
 
     for mut next_subheap in subheap_iter {
