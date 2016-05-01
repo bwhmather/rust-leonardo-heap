@@ -65,6 +65,42 @@ fn restring<'a, T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<'a, T>) {
 }
 
 
+fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
+    sift_down(&mut layout.iter(heap_data).next().unwrap());
+    restring(layout.iter(heap_data));
+}
+
+
+fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
+    {
+        let mut subheap_iter = layout.iter(heap_data);
+        match (subheap_iter.next(), subheap_iter.next()) {
+            (Some(fst), Some(snd)) => {
+                if snd.order - fst.order != 1 {
+                    return
+                }
+            }
+            _ => {
+                return;
+            }
+        }
+    }
+
+    {
+        let mut subheaps_from_snd = layout.iter(heap_data);
+        // consume the first subheap
+        subheaps_from_snd.next();
+
+        restring(subheaps_from_snd);
+    }
+
+    {
+        let subheaps_from_fst = layout.iter(heap_data);
+        restring(subheaps_from_fst);
+    }
+}
+
+
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
@@ -88,8 +124,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         self.data.push(item);
         self.layout.push();
 
-        sift_down(&mut self.iter_subheaps().next().unwrap());
-        restring(self.iter_subheaps());
+        balance_after_push(self.data.as_mut_slice(), &self.layout);
     }
 
     pub fn peek(&self) -> Option<&T> {
@@ -97,44 +132,12 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        match self.layout.lowest_order() {
-            Some(0) | Some(1) => {
-                self.layout.pop();
+        let result = self.data.pop();
+        self.layout.pop();
 
-                // TODO should always return Some(...) but might be worth
-                // checking explicitly
-                self.data.pop()
-            }
-            Some(order) => {
-                self.layout.pop();
+        balance_after_pop(self.data.as_mut_slice(), &self.layout);
 
-                // TODO should always return Some(...) but might be worth
-                // checking explicitly
-                let result = self.data.pop();
-
-                if self.layout.lowest_order() == None {
-                    return None; // TODO
-                }
-
-                {
-                    let mut subheaps_from_snd = self.iter_subheaps();
-                    // consume the first subheap
-                    subheaps_from_snd.next();
-
-                    restring(subheaps_from_snd);
-                }
-
-                {
-                    let subheaps_from_fst = self.iter_subheaps();
-                    restring(subheaps_from_fst);
-                }
-
-                return result;
-            }
-            None => {
-                None
-            }
-        }
+        result
     }
 }
 
