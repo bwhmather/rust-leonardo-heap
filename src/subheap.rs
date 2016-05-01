@@ -5,7 +5,7 @@ use leonardo::leonardo;
 #[derive(Clone, Debug)]
 pub struct SubHeap<'a, T: 'a> {
     data: &'a [T],
-    order: u32,
+    pub order: u32,
 }
 
 
@@ -52,7 +52,7 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
 #[derive(Debug)]
 pub struct SubHeapMut<'a, T: 'a> {
     data: &'a mut [T],
-    order: u32,
+    pub order: u32,
 }
 
 
