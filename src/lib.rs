@@ -73,6 +73,8 @@ fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
 
 
 fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+    assert_eq!(heap_data.len(), layout.len());
+
     sift_down(&mut layout.iter(heap_data).next().unwrap());
     restring(layout.iter(heap_data));
 }
@@ -326,8 +328,9 @@ mod tests {
 
     use self::rand::Rng;
 
+    use layout;
     use subheap::SubHeapMut;
-    use {LeonardoHeap, Iter, restring, sift_down};
+    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push};
 
     #[test]
     fn test_sift_down_zero() {
@@ -390,6 +393,49 @@ mod tests {
         let mut subheap_data = [1, 2, 4, 4, 3];
         sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
         assert_eq!(subheap_data, [1, 2, 3, 4, 4]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_sift_down_wrong_order() {
+        let mut subheap_data : [i32; 0] = [];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 0));
+    }
+
+    #[test]
+    fn test_balance_after_push_first() {
+        let mut subheap_data = [1];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(1));
+        assert_eq!(subheap_data, [1]);
+    }
+
+    #[test]
+    fn test_balance_after_push_second() {
+        let mut subheap_data = [1, 2];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(subheap_data, [1, 2]);
+
+        let mut subheap_data = [2, 1];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(subheap_data, [1, 2]);
+    }
+
+    #[test]
+    fn test_balance_after_push_merge() {
+        let mut subheap_data = [1, 2, 3];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        assert_eq!(subheap_data, [1, 2, 3]);
+
+        let mut subheap_data = [1, 3, 2];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        assert_eq!(subheap_data, [1, 2, 3]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_balance_after_push_mismatched_lengths() {
+        let mut subheap_data = [1, 2, 3, 4];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(12));
     }
 
     #[test]
