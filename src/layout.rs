@@ -99,7 +99,7 @@ impl Layout {
         assert_eq!(data.len(), self.size);
 
         IterMut {
-            heap: data,
+            heap_data: data,
             orders: self.orders,
         }
     }
@@ -108,7 +108,7 @@ impl Layout {
 
 #[derive(Debug)]
 pub struct IterMut<'a, T: 'a> {
-    heap: &'a mut [T],
+    heap_data: &'a mut [T],
     orders: u64,
 }
 
@@ -127,12 +127,12 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
             // We need to pre-calculate the length to get around the fact that
             // the borrow checker can't yet handle borrowing in for only as
             // long as is needed to calculate the argument to a function
-            let heap_len = self.heap.len();
+            let heap_len = self.heap_data.len();
 
             // In order to avoid having more than one mutable reference to the
             // heap at any one time,we have to temporarily replace it in self
             // with a placeholder value.
-            let mut heap_data = mem::replace(&mut self.heap, &mut []);
+            let mut heap_data = mem::replace(&mut self.heap_data, &mut []);
 
             // Split the heap into the part belonging to this sub-heap and all
             // of the rest
@@ -141,7 +141,7 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
             );
 
             // Store what's left of the heap back in self
-            self.heap = rest_data;
+            self.heap_data = rest_data;
 
             Some(SubHeapMut::new(subheap_data, order))
         } else {
