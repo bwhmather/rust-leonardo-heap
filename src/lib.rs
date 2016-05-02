@@ -1,4 +1,4 @@
-
+//! A binary heap structure supporting fast in-place partial sorting.
 mod leonardo;
 mod subheap;
 mod layout;
@@ -141,6 +141,26 @@ impl<'a, T : Ord + Debug> Iterator for HeapIterMut<'a, T>
 
 
 #[derive(Debug)]
+pub struct Drain<'a, T: 'a> {
+    heap: &'a mut LeonardoHeap<T>,
+}
+
+
+impl<'a, T: Ord + Debug> Iterator for Drain<'a, T>
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        self.heap.pop()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.heap.len(), Some(self.heap.len()))
+    }
+}
+
+
+#[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
     layout: Layout,
@@ -150,13 +170,86 @@ pub struct LeonardoHeap<T> {
 impl<T: Ord + Debug> LeonardoHeap<T> {
     pub fn new() -> Self {
         LeonardoHeap {
-            data: vec![],
+            data: Vec::new(),
             layout: Layout::new(),
         }
     }
 
-    fn iter_subheaps(&mut self) -> SubHeapIterMut<T> {
-       self.layout.iter(&mut self.data)
+    pub fn with_capacity(capacity: usize) -> Self {
+        LeonardoHeap {
+            data: Vec::with_capacity(capacity),
+            layout: Layout::new(),
+        }
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.data.capacity()
+    }
+
+    pub fn reserve(&mut self, capacity: usize) {
+        self.data.reserve(capacity)
+    }
+
+    pub fn reserve_exact(&mut self, capacity: usize) {
+        self.data.reserve_exact(capacity)
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        self.data.shrink_to_fit()
+    }
+
+    pub fn retain<F>(&mut self, f: F)
+        where F: FnMut(&T) -> bool
+    {
+        // TODO there is a much more interesting implementation
+        self.data.retain(f);
+
+        self.heapify();
+    }
+
+    pub fn drain(&mut self) -> Drain<T> {
+        Drain {
+            heap: self,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.layout = Layout::new();
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    pub fn dedup(&mut self) {
+        self.sort();
+        self.data.dedup();
+        self.heapify();
+    }
+
+    fn heapify(&mut self) {
+        let mut layout = Layout::new();
+
+        // TODO harmless off-by-one error
+        for i in 0..self.data.len() {
+            balance_after_push(&mut self.data[0..i], &layout);
+            layout.push();
+        }
+    }
+
+    pub fn sort(&mut self) {
+        let mut layout = self.layout.clone();
+
+        // TODO harmless off-by-one error
+        for i in (0..self.data.len()).rev() {
+            layout.pop();
+            balance_after_pop(&mut self.data[0..i], &layout);
+        }
     }
 
     pub fn push(&mut self, item: T) {
@@ -243,7 +336,7 @@ mod tests {
 
 
     #[test]
-    fn test_sort_random() {
+    fn test_random() {
         let mut rng = rand::thread_rng();
 
         let mut inputs: Vec<i32> = Vec::new();
@@ -272,6 +365,29 @@ mod tests {
 
         assert_eq!(outputs, inputs);
     }
+
+
+    #[test]
+    fn test_sort_random() {
+        let mut rng = rand::thread_rng();
+
+        let mut inputs: Vec<i32> = Vec::new();
+        for _ in 0..200 {
+            inputs.push(rng.gen());
+        }
+
+        let mut heap = LeonardoHeap::new();
+        for input in &inputs {
+            heap.push(input.clone());
+        }
+
+        heap.sort();
+
+        inputs.sort();
+
+        assert_eq!(heap.data, inputs);
+    }
+
 
     #[test]
     fn test_iter() {
