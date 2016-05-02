@@ -7,7 +7,6 @@ use std::fmt::Debug;
 
 use leonardo::leonardo;
 use subheap::SubHeapMut;
-use layout::{SubHeapIterMut, Layout};
 
 
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
@@ -48,7 +47,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
 }
 
 
-fn restring<T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<T>) {
+fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
     let mut this_subheap = subheap_iter.next().unwrap();
 
     for mut next_subheap in subheap_iter {
@@ -65,13 +64,13 @@ fn restring<T : Ord + Debug>(mut subheap_iter: SubHeapIterMut<T>) {
 }
 
 
-fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
+fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
     sift_down(&mut layout.iter(heap_data).next().unwrap());
     restring(layout.iter(heap_data));
 }
 
 
-fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
+fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
     {
         let mut subheap_iter = layout.iter(heap_data);
         match (subheap_iter.next(), subheap_iter.next()) {
@@ -104,7 +103,7 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
 #[derive(Debug)]
 pub struct IterMut<'a, T: 'a> {
     heap_data: &'a mut [T],
-    layout: Layout,
+    layout: layout::Layout,
 }
 
 
@@ -163,7 +162,7 @@ impl<'a, T: Ord + Debug> Iterator for Drain<'a, T>
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
-    layout: Layout,
+    layout: layout::Layout,
 }
 
 
@@ -171,14 +170,14 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     pub fn new() -> Self {
         LeonardoHeap {
             data: Vec::new(),
-            layout: Layout::new(),
+            layout: layout::Layout::new(),
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         LeonardoHeap {
             data: Vec::with_capacity(capacity),
-            layout: Layout::new(),
+            layout: layout::Layout::new(),
         }
     }
 
@@ -215,7 +214,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
     pub fn clear(&mut self) {
         self.data.clear();
-        self.layout = Layout::new();
+        self.layout = layout::Layout::new();
     }
 
     pub fn len(&self) -> usize {
@@ -233,7 +232,7 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     }
 
     fn heapify(&mut self) {
-        let mut layout = Layout::new();
+        let mut layout = layout::Layout::new();
 
         // TODO harmless off-by-one error
         for i in 0..self.data.len() {

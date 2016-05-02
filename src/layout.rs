@@ -95,10 +95,10 @@ impl Layout {
         }
     }
 
-    pub fn iter<'a, T : Ord + Debug>(&self, data : &'a mut [T]) -> SubHeapIterMut<'a, T> {
+    pub fn iter<'a, T : Ord + Debug>(&self, data : &'a mut [T]) -> IterMut<'a, T> {
         assert_eq!(data.len(), self.size);
 
-        SubHeapIterMut {
+        IterMut {
             heap: data,
             orders: self.orders,
         }
@@ -107,13 +107,13 @@ impl Layout {
 
 
 #[derive(Debug)]
-pub struct SubHeapIterMut<'a, T: 'a> {
+pub struct IterMut<'a, T: 'a> {
     heap: &'a mut [T],
     orders: u64,
 }
 
 
-impl<'a, T : Ord + Debug> Iterator for SubHeapIterMut<'a, T>
+impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
 {
     type Item = SubHeapMut<'a, T>;
 
