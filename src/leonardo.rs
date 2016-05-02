@@ -1,3 +1,10 @@
+// Copyright 2016 Ben Mather <bwhmather@bwhmather.com>
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 const LEONARDO_NUMBERS: [u64; 64] = [
     1, 1, 3, 5, 9, 15, 25, 41, 67, 109, 177, 287, 465, 753, 1219, 1973, 3193,
     5167, 8361, 13529, 21891, 35421, 57313, 92735, 150049, 242785, 392835,
