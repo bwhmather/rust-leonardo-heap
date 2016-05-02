@@ -1,4 +1,6 @@
 //! A binary heap structure supporting fast in-place partial sorting.
+//!
+//! This is structure is the core of Dijkstra's Smoothsort algorithm.
 mod leonardo;
 mod subheap;
 mod layout;
@@ -7,7 +9,6 @@ use std::fmt::Debug;
 
 use leonardo::leonardo;
 use subheap::SubHeapMut;
-
 
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     let (mut this_value, mut children) = heap.destructure_mut();
@@ -167,6 +168,7 @@ pub struct LeonardoHeap<T> {
 
 
 impl<T: Ord + Debug> LeonardoHeap<T> {
+    /// Creates a new, empty `LeonardoHeap<T>`
     pub fn new() -> Self {
         LeonardoHeap {
             data: Vec::new(),
@@ -174,6 +176,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
+    /// Creates a new `LeonardoHeap<T>` with space allocated for at least
+    /// `capacity` elements.
     pub fn with_capacity(capacity: usize) -> Self {
         LeonardoHeap {
             data: Vec::with_capacity(capacity),
@@ -181,22 +185,30 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
+    /// Returns the number of elements for which space has been allocated.
     pub fn capacity(&self) -> usize {
         self.data.capacity()
     }
 
-    pub fn reserve(&mut self, capacity: usize) {
-        self.data.reserve(capacity)
+    /// Reserve at least enough space for `additional` elements to be pushed
+    /// on to the heap.
+    pub fn reserve(&mut self, additional: usize) {
+        self.data.reserve(additional)
     }
 
-    pub fn reserve_exact(&mut self, capacity: usize) {
-        self.data.reserve_exact(capacity)
+    /// Reserves the minimum capacity for exactly `additional` elements to be
+    /// pushed onto the heap.
+    pub fn reserve_exact(&mut self, additional: usize) {
+        self.data.reserve_exact(additional)
     }
 
+    /// Shrinks the capacity of the underlying storage to free up as much space
+    /// as possible.
     pub fn shrink_to_fit(&mut self) {
         self.data.shrink_to_fit()
     }
 
+    /// Removes all elements from the heap that do not match a predicate.
     pub fn retain<F>(&mut self, f: F)
         where F: FnMut(&T) -> bool
     {
@@ -206,25 +218,23 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         self.heapify();
     }
 
-    pub fn drain(&mut self) -> Drain<T> {
-        Drain {
-            heap: self,
-        }
-    }
-
+    /// Removes all elements from the heap.
     pub fn clear(&mut self) {
         self.data.clear();
         self.layout = layout::Layout::new();
     }
 
+    /// Returns the number of elements in the heap.
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
+    /// Returns `true` if the heap contains no elements, `false` otherwise.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
+    /// Removes duplicate elements from the heap, preserving heap order.
     pub fn dedup(&mut self) {
         self.sort();
         self.data.dedup();
@@ -241,6 +251,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
+    /// Forces sorting of the entire underlying array.  The sorted array is
+    /// still a valid leonardo heap.
     pub fn sort(&mut self) {
         let mut layout = self.layout.clone();
 
@@ -251,6 +263,10 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         }
     }
 
+    /// Adds a new element to the heap.  The heap will be rebalanced to
+    /// maintain the string and heap properties.
+    ///
+    /// Elements pushed more than once will not be deduplicated.
     pub fn push(&mut self, item: T) {
         self.data.push(item);
         self.layout.push();
@@ -258,10 +274,14 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         balance_after_push(self.data.as_mut_slice(), &self.layout);
     }
 
+    /// Returns a reference to the largest element in the heap without removing
+    /// it.
     pub fn peek(&self) -> Option<&T> {
         self.data.get(self.data.len())
     }
 
+    /// Removes and returns the largest element in the heap.  If the heap is
+    /// empty, returns `None`.
     pub fn pop(&mut self) -> Option<T> {
         let result = self.data.pop();
         self.layout.pop();
@@ -271,10 +291,23 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         result
     }
 
+    /// Returns a *sorted* iterator over the elements in the heap.
+    ///
+    /// Will lazily sort the top elements of the heap in-place as it is
+    /// consumed.
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut {
             heap_data: self.data.as_mut_slice(),
             layout: self.layout.clone(),
+        }
+    }
+
+    /// Returns an iterator that removes and returns elements from the top of
+    /// the heap.
+    pub fn drain(&mut self) -> Drain<T> {
+        // TODO should drain clear the heap if not fully consumed
+        Drain {
+            heap: self,
         }
     }
 }
