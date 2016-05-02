@@ -44,6 +44,10 @@ impl Layout {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
     pub fn push(&mut self) {
         self.size += 1;
 
