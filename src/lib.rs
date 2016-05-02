@@ -102,17 +102,17 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layou
 
 
 #[derive(Debug)]
-pub struct IterMut<'a, T: 'a> {
+pub struct Iter<'a, T: 'a> {
     heap_data: &'a mut [T],
     layout: layout::Layout,
 }
 
 
-impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
+impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
 {
-    type Item = &'a mut T;
+    type Item = &'a T;
 
-    fn next(&mut self) -> Option<&'a mut T> {
+    fn next(&mut self) -> Option<&'a T> {
         self.layout.pop();
 
         if self.heap_data.len() != 0 {
@@ -128,7 +128,7 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
 
             balance_after_pop(self.heap_data, &self.layout);
 
-            Some(result)
+            Some(&*result)
         } else {
             None
         }
@@ -295,8 +295,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     ///
     /// Will lazily sort the top elements of the heap in-place as it is
     /// consumed.
-    pub fn iter_mut(&mut self) -> IterMut<T> {
-        IterMut {
+    pub fn iter(&mut self) -> Iter<T> {
+        Iter {
             heap_data: self.data.as_mut_slice(),
             layout: self.layout.clone(),
         }
@@ -320,7 +320,7 @@ mod tests {
     use self::rand::Rng;
 
     use subheap::SubHeapMut;
-    use {LeonardoHeap, IterMut, restring, sift_down};
+    use {LeonardoHeap, Iter, restring, sift_down};
 
     #[test]
     fn test_sift_down_zero() {
@@ -474,15 +474,15 @@ mod tests {
         heap.push(2);
         heap.push(3);
 
-        let mut heap_iter = heap.iter_mut();
+        let mut heap_iter = heap.iter();
 
         let mut var = 4;
-        assert_eq!(heap_iter.next(), Some(&mut var));
+        assert_eq!(heap_iter.next(), Some(&var));
         var = 3;
-        assert_eq!(heap_iter.next(), Some(&mut var));
+        assert_eq!(heap_iter.next(), Some(&var));
         var = 2;
-        assert_eq!(heap_iter.next(), Some(&mut var));
+        assert_eq!(heap_iter.next(), Some(&var));
         var = 1;
-        assert_eq!(heap_iter.next(), Some(&mut var));
+        assert_eq!(heap_iter.next(), Some(&var));
     }
 }
