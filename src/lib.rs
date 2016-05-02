@@ -102,13 +102,13 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &Layout) {
 
 
 #[derive(Debug)]
-pub struct HeapIterMut<'a, T: 'a> {
+pub struct IterMut<'a, T: 'a> {
     heap_data: &'a mut [T],
     layout: Layout,
 }
 
 
-impl<'a, T : Ord + Debug> Iterator for HeapIterMut<'a, T>
+impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
 {
     type Item = &'a mut T;
 
@@ -272,8 +272,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
         result
     }
 
-    pub fn iter_mut(&mut self) -> HeapIterMut<T> {
-        HeapIterMut {
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        IterMut {
             heap_data: self.data.as_mut_slice(),
             layout: self.layout.clone(),
         }
@@ -288,7 +288,7 @@ mod tests {
     use self::rand::Rng;
 
     use subheap::SubHeapMut;
-    use {LeonardoHeap, HeapIterMut, restring, sift_down};
+    use {LeonardoHeap, IterMut, restring, sift_down};
 
     #[test]
     fn test_sift_down() {
