@@ -323,22 +323,67 @@ mod tests {
     use {LeonardoHeap, IterMut, restring, sift_down};
 
     #[test]
-    fn test_sift_down() {
-        let mut heap = vec![3, 2, 1];
-        {
-            let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-            sift_down(&mut subheap);
-        }
-        assert_eq!(heap, vec![1, 2, 3]);
-
-        let mut heap = vec![3, 5, 4];
-        {
-            let mut subheap = SubHeapMut::new(heap.as_mut_slice(), 2);
-            sift_down(&mut subheap);
-        }
-        assert_eq!(heap, vec![3, 4, 5]);
+    fn test_sift_down_zero() {
+        let mut subheap_data = [1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 0));
+        assert_eq!(subheap_data, [1]);
     }
 
+    #[test]
+    fn test_sift_down_one() {
+        let mut subheap_data = [1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 1));
+        assert_eq!(subheap_data, [1]);
+    }
+
+    #[test]
+    fn test_sift_down_two() {
+        let mut subheap_data = [3, 2, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [1, 2, 3]);
+
+        let mut subheap_data = [3, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [3, 4, 5]);
+
+        let mut subheap_data = [6, 7, 8];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [6, 7, 8]);
+    }
+
+    #[test]
+    fn test_sift_down_three() {
+        let mut subheap_data = [1, 2, 3, 4, 5];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [1, 2, 3, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [1, 2, 5, 4, 3];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [2, 3, 5, 4, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [2, 1, 3, 4, 5]);
+
+        let mut subheap_data = [3, 2, 5, 4, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn test_sift_down_sorting() {
+        let mut subheap_data = [5, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [4, 5, 5]);
+
+        let mut subheap_data = [1, 2, 4, 4, 3];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 4]);
+    }
 
     #[test]
     fn test_restring() {
