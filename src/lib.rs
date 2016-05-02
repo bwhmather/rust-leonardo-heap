@@ -330,7 +330,7 @@ mod tests {
 
     use layout;
     use subheap::SubHeapMut;
-    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push};
+    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push, balance_after_pop};
 
     #[test]
     fn test_sift_down_zero() {
@@ -436,6 +436,80 @@ mod tests {
     fn test_balance_after_push_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
         balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(12));
+    }
+
+    #[test]
+    fn test_balance_after_pop_empty() {
+        let mut subheap_data : [i32; 0]= [];
+        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(0));
+        assert_eq!(subheap_data, []);
+    }
+
+    #[test]
+    fn test_balance_after_pop_one() {
+        let mut heap_data = [1];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(1));
+        assert_eq!(heap_data, [1]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_two() {
+        let mut heap_data = [1, 2];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(heap_data, [1, 2]);
+
+        let mut heap_data = [2, 1];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(heap_data, [1, 2]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_split_heaps() {
+        let mut heap_data = [1, 2, 3, 4, 5, 6, 7];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 5, 7, 6];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 6, 5, 7];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 7, 5, 6];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 6, 7, 5];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 7, 6, 5];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_restring_after_sift() {
+        let mut heap_data = [
+            1, 2, 3, 4, 5, 6, 10, 11, 12,
+            9, 7, 13,
+            8
+        ];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(13));
+        assert_eq!(heap_data, [
+            1, 2, 3, 4, 5, 6, 9, 10, 11,
+            8, 7, 12,
+            13,
+        ]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_balance_after_pop_mismatched_lengths() {
+        let mut subheap_data = [1, 2, 3, 4];
+        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(12));
     }
 
     #[test]
