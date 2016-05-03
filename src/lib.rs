@@ -54,20 +54,23 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     }
 }
 
-
 fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
-    let mut this_subheap = subheap_iter.next().unwrap();
+    match subheap_iter.next() {
+        Some(mut this_subheap) => {
 
-    for mut next_subheap in subheap_iter {
-        if next_subheap.value() <= this_subheap.value() {
-            break;
+            for mut next_subheap in subheap_iter {
+                if next_subheap.value() <= this_subheap.value() {
+                    break;
+                }
+
+                std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
+
+                sift_down(&mut next_subheap);
+
+                this_subheap = next_subheap;
+            }
         }
-
-        std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
-
-        sift_down(&mut next_subheap);
-
-        this_subheap = next_subheap;
+        None => {}
     }
 }
 
