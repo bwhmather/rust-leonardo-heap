@@ -17,6 +17,7 @@ use std::fmt::Debug;
 use leonardo::leonardo;
 use subheap::SubHeapMut;
 
+
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     let (mut this_value, mut children) = heap.destructure_mut();
 
@@ -53,6 +54,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
         }
     }
 }
+
 
 fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
     match subheap_iter.next() {
@@ -544,7 +546,6 @@ mod tests {
         assert_eq!(heap.pop(), Some(1));
     }
 
-
     #[test]
     fn test_random() {
         let mut rng = rand::thread_rng();
@@ -576,7 +577,6 @@ mod tests {
         assert_eq!(outputs, expected);
     }
 
-
     #[test]
     fn test_sort_random() {
         let mut rng = rand::thread_rng();
@@ -597,7 +597,6 @@ mod tests {
 
         assert_eq!(heap.data, expected);
     }
-
 
     #[test]
     fn test_iter() {
