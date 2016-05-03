@@ -531,18 +531,6 @@ mod tests {
     }
 
     #[test]
-    fn test_restring() {
-        //let mut heap = LeonardoHeap {
-        //    data: vec![4, 3],
-        //};
-
-        //heap.restring(1, BitSet::from_bytes(&[0b11000000]));
-
-        //assert_eq!(heap.data, vec![3, 4]);
-    }
-
-
-    #[test]
     fn test_push_pop() {
         let mut heap = LeonardoHeap::new();
         heap.push(4);
