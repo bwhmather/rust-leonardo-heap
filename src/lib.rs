@@ -509,6 +509,21 @@ mod tests {
     }
 
     #[test]
+    fn test_balance_after_pop_mutiple_layers() {
+        let mut heap_data = [
+            3, 0, 5, 1, 9, 2, 6, 7, 10,
+            4,
+            8,
+        ];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(11));
+        assert_eq!(heap_data, [
+            3, 0, 4, 1, 5, 2, 6, 7, 8,
+            9,
+            10,
+        ]);
+    }
+
+    #[test]
     #[should_panic]
     fn test_balance_after_pop_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
