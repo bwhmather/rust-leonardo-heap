@@ -1,7 +1,16 @@
 [package]
-name = "leonardo_heap"
-version = "0.1.0"
+name = "leonardo-heap"
+version = "0.2.0"
+description = "Heap structure supporting fast in-place partial sorting"
+readme = "README.mkd"
+license = "MIT/Apache-2.0"
+keywords = ["data-structures", "collection", "heap", "priority-queue"]
+repository = "https://github.com/bwhmather/rust-leonardo-heap"
+homepage = "https://github.com/bwhmather/rust-leonardo-heap"
 authors = ["Ben Mather <bwhmather@bwhmather.com>"]
 
-[dependencies]
+[lib]
+doctest = false
+
+[dev-dependencies]
 rand = "0.3"

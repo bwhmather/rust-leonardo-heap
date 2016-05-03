@@ -1,113 +1,175 @@
-extern crate rand;
-use rand::Rng;
+// Copyright 2016 Ben Mather <bwhmather@bwhmather.com>
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+//! A binary heap structure supporting fast in-place partial sorting.
+//!
+//! This is structure is the core of Dijkstra's Smoothsort algorithm.
+mod leonardo;
+mod subheap;
+mod layout;
+
 use std::fmt::Debug;
 
-
-const LEONARDO_NUMBERS: [u64; 64] = [
-    1, 1, 3, 5, 9, 15, 25, 41, 67, 109, 177, 287, 465, 753, 1219, 1973, 3193,
-    5167, 8361, 13529, 21891, 35421, 57313, 92735, 150049, 242785, 392835,
-    635621, 1028457, 1664079, 2692537, 4356617, 7049155, 11405773, 18454929,
-    29860703, 48315633, 78176337, 126491971, 204668309, 331160281, 535828591,
-    866988873, 1402817465, 2269806339, 3672623805, 5942430145, 9615053951,
-    15557484097, 25172538049, 40730022147, 65902560197, 106632582345,
-    172535142543, 279167724889, 451702867433, 730870592323, 1182573459757,
-    1913444052081, 3096017511839, 5009461563921, 8105479075761, 13114940639683,
-    21220419715445,
-];
+use leonardo::leonardo;
+use subheap::SubHeapMut;
 
 
-fn leonardo(order: u32) -> usize {
-    LEONARDO_NUMBERS[order as usize] as usize
-}
+fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
+    let (mut this_value, mut children) = heap.destructure_mut();
 
-
-fn _partition(len: usize) -> u64 {
-    let mut orders = 0;
-    let mut remaining = len;
-
-    for order in (0..63).rev() {
-        if leonardo(order) <= remaining {
-            remaining -= leonardo(order);
-            orders |= 1 << order;
+    loop {
+        // No children.  We have reached the bottom of the heap
+        if children.is_none() {
+            break;
         }
-    }
 
-    return orders;
-}
+        let (fst_child, snd_child) = children.unwrap();
 
-#[derive(Clone, Debug)]
-struct Partitioning {
-    orders: u64,
-    size: usize,
-}
+        // Find the largest child.  Prefer the furthest child if both children
+        // are the same as doing so makes the array slightly more sorted.
+        let mut next_heap = if fst_child.value() > snd_child.value() {
+            fst_child
+        } else {
+            snd_child
+        };
 
-impl Partitioning {
-    pub fn new() -> Self {
-        Partitioning {
-            orders: 0,
-            size: 0,
+        // The heap property is satisfied.  No need to do anything else
+        if &*this_value >= next_heap.value() {
+            break;
         }
-    }
 
-    pub fn new_from_len(size: usize) -> Self {
-        Partitioning {
-            orders: _partition(size),
-            size: size,
-        }
-    }
+        // Seap the value of the parent with the value of the largest child.
+        std::mem::swap(this_value, next_heap.value_mut());
 
-    pub fn push(&mut self) {
-        self.size += 1;
-    }
-
-    pub fn pop(&mut self) {
-        self.size -= 1;
-    }
-
-    #[inline]
-    pub fn lowest_order(&self) -> Option<u32> {
-        match self.orders.trailing_zeros() {
-            64 => None,
-            n => Some(n),
-        }
-    }
-
-    pub fn iter(&self) -> PartitioningIterator {
-        PartitioningIterator {
-            orders: _partition(self.size),
-            root: self.size - 1,
-        }
-    }
-}
-
-#[derive(Clone)]
-struct PartitioningIterator {
-    orders: u64,
-    root: usize,
-}
-
-impl Iterator for PartitioningIterator {
-    type Item = (usize, u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.orders.count_ones() != 0 {
-            let order = self.orders.trailing_zeros();
-            let root = self.root;
-
-            self.orders ^= 1 << order;
-            if self.orders != 0 {
-                self.root -= leonardo(order);
+        // TODO there has to be a better pattern for unpacking to existing vars
+        match next_heap.into_components() {
+            (v, n) => {
+                this_value = v;
+                children = n;
             }
+        }
+    }
+}
 
-            Some((root, order))
+
+fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
+    match subheap_iter.next() {
+        Some(mut this_subheap) => {
+
+            for mut next_subheap in subheap_iter {
+                if next_subheap.value() <= this_subheap.value() {
+                    break;
+                }
+
+                std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
+
+                sift_down(&mut next_subheap);
+
+                this_subheap = next_subheap;
+            }
+        }
+        None => {}
+    }
+}
+
+
+fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+    assert_eq!(heap_data.len(), layout.len());
+
+    sift_down(&mut layout.iter(heap_data).next().unwrap());
+    restring(layout.iter(heap_data));
+}
+
+
+fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+    {
+        let mut subheap_iter = layout.iter(heap_data);
+        match (subheap_iter.next(), subheap_iter.next()) {
+            (Some(fst), Some(snd)) => {
+                if snd.order - fst.order != 1 {
+                    return
+                }
+            }
+            _ => {
+                return;
+            }
+        }
+    }
+
+    {
+        let mut subheaps_from_snd = layout.iter(heap_data);
+        // consume the first subheap
+        subheaps_from_snd.next();
+
+        restring(subheaps_from_snd);
+    }
+
+    {
+        let subheaps_from_fst = layout.iter(heap_data);
+        restring(subheaps_from_fst);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct Iter<'a, T: 'a> {
+    heap_data: &'a mut [T],
+    layout: layout::Layout,
+}
+
+
+impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
+{
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        self.layout.pop();
+
+        if self.heap_data.len() != 0 {
+            // In order to avoid having more than one mutable reference to the
+            // heap at any one time,we have to temporarily replace it in self
+            // with a placeholder value.
+            let mut heap_data = std::mem::replace(&mut self.heap_data, &mut []);
+
+            let (result, rest_data) = heap_data.split_last_mut().unwrap();
+
+            // Store what's left of the heap back in self
+            self.heap_data = rest_data;
+
+            balance_after_pop(self.heap_data, &self.layout);
+
+            Some(&*result)
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let ones = self.orders.count_ones() as usize;
-        (ones, Some(ones))
+        (self.heap_data.len(), Some(self.heap_data.len()))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct Drain<'a, T: 'a> {
+    heap: &'a mut LeonardoHeap<T>,
+}
+
+
+impl<'a, T: Ord + Debug> Iterator for Drain<'a, T>
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        self.heap.pop()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.heap.len(), Some(self.heap.len()))
     }
 }
 
@@ -115,188 +177,444 @@ impl Iterator for PartitioningIterator {
 #[derive(Debug)]
 pub struct LeonardoHeap<T> {
     data: Vec<T>,
+    layout: layout::Layout,
 }
 
 
 impl<T: Ord + Debug> LeonardoHeap<T> {
+    /// Creates a new, empty `LeonardoHeap<T>`
     pub fn new() -> Self {
         LeonardoHeap {
-            data: vec![],
+            data: Vec::new(),
+            layout: layout::Layout::new(),
         }
     }
 
-    fn sift_down(&mut self, root: usize, order: u32) {
-        let mut pos = root;
-        let mut order = order;
-
-        while order > 1 {
-            let fst_child_pos = pos - 1;
-            let snd_child_pos = pos - 1 - leonardo(order - 2);
-
-            // If the root is greater than both children we can stop
-            if (self.data[pos] >= self.data[fst_child_pos]) &&
-               (self.data[pos] >= self.data[snd_child_pos]) {
-                break;
-            }
-
-            // Swap the parent with the largest child.  Prefer the furthest
-            // child if both children are the same as doing so makes the array
-            // slightly more sorted.
-            if self.data[fst_child_pos] > self.data[snd_child_pos] {
-                self.data.swap(pos, fst_child_pos);
-
-                pos = fst_child_pos;
-                order -= 2;
-            } else {
-                self.data.swap(pos, snd_child_pos);
-
-                pos = snd_child_pos;
-                order -= 1;
-            }
+    /// Creates a new `LeonardoHeap<T>` with space allocated for at least
+    /// `capacity` elements.
+    pub fn with_capacity(capacity: usize) -> Self {
+        LeonardoHeap {
+            data: Vec::with_capacity(capacity),
+            layout: layout::Layout::new(),
         }
     }
 
-    fn restring(&mut self, mut orders_iter: PartitioningIterator) {
-        let (mut this_root, _) = orders_iter.next().unwrap();
+    /// Returns the number of elements for which space has been allocated.
+    pub fn capacity(&self) -> usize {
+        self.data.capacity()
+    }
 
-        for (next_root, next_order) in orders_iter {
-            if self.data[next_root] <= self.data[this_root] {
-                break;
-            }
+    /// Reserve at least enough space for `additional` elements to be pushed
+    /// on to the heap.
+    pub fn reserve(&mut self, additional: usize) {
+        self.data.reserve(additional)
+    }
 
-            self.data.swap(next_root, this_root);
+    /// Reserves the minimum capacity for exactly `additional` elements to be
+    /// pushed onto the heap.
+    pub fn reserve_exact(&mut self, additional: usize) {
+        self.data.reserve_exact(additional)
+    }
 
-            self.sift_down(next_root, next_order);
+    /// Shrinks the capacity of the underlying storage to free up as much space
+    /// as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.data.shrink_to_fit()
+    }
 
-            this_root = next_root;
+    /// Removes all elements from the heap that do not match a predicate.
+    pub fn retain<F>(&mut self, f: F)
+        where F: FnMut(&T) -> bool
+    {
+        // TODO there is a much more interesting implementation
+        self.data.retain(f);
+
+        self.heapify();
+    }
+
+    /// Removes all elements from the heap.
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.layout = layout::Layout::new();
+    }
+
+    /// Returns the number of elements in the heap.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Returns `true` if the heap contains no elements, `false` otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Removes duplicate elements from the heap, preserving heap order.
+    pub fn dedup(&mut self) {
+        self.sort();
+        self.data.dedup();
+        self.heapify();
+    }
+
+    fn heapify(&mut self) {
+        let mut layout = layout::Layout::new();
+
+        // TODO harmless off-by-one error
+        for i in 0..self.data.len() {
+            balance_after_push(&mut self.data[0..i], &layout);
+            layout.push();
         }
     }
 
+    /// Forces sorting of the entire underlying array.  The sorted array is
+    /// still a valid leonardo heap.
+    pub fn sort(&mut self) {
+        let mut layout = self.layout.clone();
+
+        // TODO harmless off-by-one error
+        for i in (0..self.data.len()).rev() {
+            layout.pop();
+            balance_after_pop(&mut self.data[0..i], &layout);
+        }
+    }
+
+    /// Adds a new element to the heap.  The heap will be rebalanced to
+    /// maintain the string and heap properties.
+    ///
+    /// Elements pushed more than once will not be deduplicated.
     pub fn push(&mut self, item: T) {
         self.data.push(item);
+        self.layout.push();
 
-        let new_root = self.data.len() - 1;
-        // TODO self.orders.push()
-        let orders = Partitioning::new_from_len(self.data.len());
-
-        self.sift_down(new_root, orders.lowest_order().unwrap());
-        self.restring(orders.iter());
+        balance_after_push(self.data.as_mut_slice(), &self.layout);
     }
 
+    /// Returns a reference to the largest element in the heap without removing
+    /// it.
     pub fn peek(&self) -> Option<&T> {
         self.data.get(self.data.len())
     }
 
+    /// Removes and returns the largest element in the heap.  If the heap is
+    /// empty, returns `None`.
     pub fn pop(&mut self) -> Option<T> {
-        let orders = Partitioning::new_from_len(self.data.len());
+        let result = self.data.pop();
+        self.layout.pop();
 
-        match orders.lowest_order() {
-            Some(0) | Some(1) => {
-                // TODO self.orders.pop();
-                // TODO should always return Some(...) but might be worth
-                // checking explicitly
-                self.data.pop()
-            }
-            Some(order) => {
-                // TODO should always return Some(...) but might be worth
-                // checking explicitly
-                let result = self.data.pop();
+        balance_after_pop(self.data.as_mut_slice(), &self.layout);
 
-                // TODO self.orders.pop()
-                let orders = Partitioning::new_from_len(self.data.len());
+        result
+    }
 
-                if orders.orders == 0 {
-                    return None; // TODO
+    /// Returns a *sorted* iterator over the elements in the heap.
+    ///
+    /// Will lazily sort the top elements of the heap in-place as it is
+    /// consumed.
+    pub fn iter(&mut self) -> Iter<T> {
+        Iter {
+            heap_data: self.data.as_mut_slice(),
+            layout: self.layout.clone(),
+        }
+    }
+
+    /// Returns an iterator that removes and returns elements from the top of
+    /// the heap.
+    pub fn drain(&mut self) -> Drain<T> {
+        // TODO should drain clear the heap if not fully consumed
+        Drain {
+            heap: self,
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    extern crate rand;
+
+    use self::rand::Rng;
+
+    use layout;
+    use subheap::SubHeapMut;
+    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push, balance_after_pop};
+
+    #[test]
+    fn test_sift_down_zero() {
+        let mut subheap_data = [1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 0));
+        assert_eq!(subheap_data, [1]);
+    }
+
+    #[test]
+    fn test_sift_down_one() {
+        let mut subheap_data = [1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 1));
+        assert_eq!(subheap_data, [1]);
+    }
+
+    #[test]
+    fn test_sift_down_two() {
+        let mut subheap_data = [3, 2, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [1, 2, 3]);
+
+        let mut subheap_data = [3, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [3, 4, 5]);
+
+        let mut subheap_data = [6, 7, 8];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [6, 7, 8]);
+    }
+
+    #[test]
+    fn test_sift_down_three() {
+        let mut subheap_data = [1, 2, 3, 4, 5];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [1, 2, 3, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [1, 2, 5, 4, 3];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+
+        let mut subheap_data = [2, 3, 5, 4, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [2, 1, 3, 4, 5]);
+
+        let mut subheap_data = [3, 2, 5, 4, 1];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn test_sift_down_sorting() {
+        let mut subheap_data = [5, 5, 4];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 2));
+        assert_eq!(subheap_data, [4, 5, 5]);
+
+        let mut subheap_data = [1, 2, 4, 4, 3];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 3));
+        assert_eq!(subheap_data, [1, 2, 3, 4, 4]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_sift_down_wrong_order() {
+        let mut subheap_data : [i32; 0] = [];
+        sift_down(&mut SubHeapMut::new(&mut subheap_data, 0));
+    }
+
+    #[test]
+    fn test_balance_after_push_first() {
+        let mut subheap_data = [1];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(1));
+        assert_eq!(subheap_data, [1]);
+    }
+
+    #[test]
+    fn test_balance_after_push_second() {
+        let mut subheap_data = [1, 2];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(subheap_data, [1, 2]);
+
+        let mut subheap_data = [2, 1];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(subheap_data, [1, 2]);
+    }
+
+    #[test]
+    fn test_balance_after_push_merge() {
+        let mut subheap_data = [1, 2, 3];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        assert_eq!(subheap_data, [1, 2, 3]);
+
+        let mut subheap_data = [1, 3, 2];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        assert_eq!(subheap_data, [1, 2, 3]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_balance_after_push_mismatched_lengths() {
+        let mut subheap_data = [1, 2, 3, 4];
+        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(12));
+    }
+
+    #[test]
+    fn test_balance_after_pop_empty() {
+        let mut subheap_data : [i32; 0]= [];
+        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(0));
+        assert_eq!(subheap_data, []);
+    }
+
+    #[test]
+    fn test_balance_after_pop_one() {
+        let mut heap_data = [1];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(1));
+        assert_eq!(heap_data, [1]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_two() {
+        let mut heap_data = [1, 2];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(heap_data, [1, 2]);
+
+        let mut heap_data = [2, 1];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(2));
+        assert_eq!(heap_data, [1, 2]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_split_heaps() {
+        let mut heap_data = [1, 2, 3, 4, 5, 6, 7];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 5, 7, 6];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 6, 5, 7];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 7, 5, 6];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 6, 7, 5];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+
+        let mut heap_data = [1, 2, 3, 4, 7, 6, 5];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(7));
+        assert_eq!(heap_data, [1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_restring_after_sift() {
+        let mut heap_data = [
+            1, 2, 3, 4, 5, 6, 10, 11, 12,
+            9, 7, 13,
+            8
+        ];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(13));
+        assert_eq!(heap_data, [
+            1, 2, 3, 4, 5, 6, 9, 10, 11,
+            8, 7, 12,
+            13,
+        ]);
+    }
+
+    #[test]
+    fn test_balance_after_pop_mutiple_layers() {
+        let mut heap_data = [
+            3, 0, 5, 1, 9, 2, 6, 7, 10,
+            4,
+            8,
+        ];
+        balance_after_pop(&mut heap_data, &layout::Layout::new_from_len(11));
+        assert_eq!(heap_data, [
+            3, 0, 4, 1, 5, 2, 6, 7, 8,
+            9,
+            10,
+        ]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_balance_after_pop_mismatched_lengths() {
+        let mut subheap_data = [1, 2, 3, 4];
+        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(12));
+    }
+
+    #[test]
+    fn test_push_pop() {
+        let mut heap = LeonardoHeap::new();
+        heap.push(4);
+        heap.push(1);
+        heap.push(2);
+        heap.push(3);
+
+        assert_eq!(heap.pop(), Some(4));
+        assert_eq!(heap.pop(), Some(3));
+        assert_eq!(heap.pop(), Some(2));
+        assert_eq!(heap.pop(), Some(1));
+    }
+
+    #[test]
+    fn test_random() {
+        let mut rng = rand::thread_rng();
+
+        let mut inputs : Vec<i32> = (0..200).collect();
+
+        let mut expected = inputs.clone();
+        expected.sort_by(|a, b| b.cmp(a));
+
+        rng.shuffle(inputs.as_mut_slice());
+
+        let mut heap = LeonardoHeap::new();
+        for input in inputs {
+            heap.push(input.clone());
+        }
+
+        let mut outputs: Vec<i32> = Vec::new();
+        loop {
+            match heap.pop() {
+                Some(output) => {
+                    outputs.push(output);
                 }
-
-                let fst_orders = orders.iter();
-
-                let mut snd_orders = orders.iter();
-                snd_orders.next();
-
-                self.restring(snd_orders);
-                self.restring(fst_orders);
-
-                return result;
-            }
-            None => {
-                None
+                None => {
+                    break;
+                }
             }
         }
-    }
-}
 
-
-#[test]
-fn test_sift_down() {
-    let mut heap = LeonardoHeap {
-        data: vec![3, 2, 1],
-    };
-
-    heap.sift_down(2, 2);
-    assert_eq!(heap.data, vec![1, 2, 3]);
-
-    let mut heap = LeonardoHeap {
-        data: vec![3, 5, 4],
-    };
-
-    heap.sift_down(2, 2);
-    assert_eq!(heap.data, vec![3, 4, 5]);
-}
-
-
-#[test]
-fn test_restring() {
-    //let mut heap = LeonardoHeap {
-    //    data: vec![4, 3],
-    //};
-
-    //heap.restring(1, BitSet::from_bytes(&[0b11000000]));
-
-    //assert_eq!(heap.data, vec![3, 4]);
-}
-
-#[test]
-fn test_push_pop() {
-    let mut heap = LeonardoHeap::new();
-    heap.push(4);
-    heap.push(1);
-    heap.push(2);
-    heap.push(3);
-
-    assert_eq!(heap.pop(), Some(4));
-    assert_eq!(heap.pop(), Some(3));
-    assert_eq!(heap.pop(), Some(2));
-    assert_eq!(heap.pop(), Some(1));
-}
-
-#[test]
-fn test_sort_random() {
-    let mut rng = rand::thread_rng();
-
-    let mut inputs: Vec<i32> = Vec::new();
-    for _ in 0..200 {
-        inputs.push(rng.gen());
+        assert_eq!(outputs, expected);
     }
 
-    let mut heap = LeonardoHeap::new();
-    for input in &inputs {
-        heap.push(input.clone());
-    }
+    #[test]
+    fn test_sort_random() {
+        let mut rng = rand::thread_rng();
 
-    let mut outputs: Vec<i32> = Vec::new();
-    loop {
-        match heap.pop() {
-            Some(output) => {
-                outputs.push(output);
-            }
-            None => {
-                break;
-            }
+        let mut inputs : Vec<i32> = (0..200).collect();
+
+        let mut expected = inputs.clone();
+        expected.sort();
+
+        rng.shuffle(inputs.as_mut_slice());
+
+        let mut heap = LeonardoHeap::new();
+        for input in &inputs {
+            heap.push(input.clone());
         }
+
+        heap.sort();
+
+        assert_eq!(heap.data, expected);
     }
 
-    inputs.sort_by(|a, b| b.cmp(a));
+    #[test]
+    fn test_iter() {
+        let mut heap = LeonardoHeap::new();
+        heap.push(4);
+        heap.push(1);
+        heap.push(2);
+        heap.push(3);
 
-    assert_eq!(outputs, inputs);
+        let mut heap_iter = heap.iter();
+
+        let mut var = 4;
+        assert_eq!(heap_iter.next(), Some(&var));
+        var = 3;
+        assert_eq!(heap_iter.next(), Some(&var));
+        var = 2;
+        assert_eq!(heap_iter.next(), Some(&var));
+        var = 1;
+        assert_eq!(heap_iter.next(), Some(&var));
+    }
 }
