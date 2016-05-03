@@ -561,13 +561,15 @@ mod tests {
     fn test_random() {
         let mut rng = rand::thread_rng();
 
-        let mut inputs: Vec<i32> = Vec::new();
-        for _ in 0..200 {
-            inputs.push(rng.gen());
-        }
+        let mut inputs : Vec<i32> = (0..200).collect();
+
+        let mut expected = inputs.clone();
+        expected.sort_by(|a, b| b.cmp(a));
+
+        rng.shuffle(inputs.as_mut_slice());
 
         let mut heap = LeonardoHeap::new();
-        for input in &inputs {
+        for input in inputs {
             heap.push(input.clone());
         }
 
@@ -583,9 +585,7 @@ mod tests {
             }
         }
 
-        inputs.sort_by(|a, b| b.cmp(a));
-
-        assert_eq!(outputs, inputs);
+        assert_eq!(outputs, expected);
     }
 
 
@@ -593,10 +593,12 @@ mod tests {
     fn test_sort_random() {
         let mut rng = rand::thread_rng();
 
-        let mut inputs: Vec<i32> = Vec::new();
-        for _ in 0..200 {
-            inputs.push(rng.gen());
-        }
+        let mut inputs : Vec<i32> = (0..200).collect();
+
+        let mut expected = inputs.clone();
+        expected.sort();
+
+        rng.shuffle(inputs.as_mut_slice());
 
         let mut heap = LeonardoHeap::new();
         for input in &inputs {
@@ -605,9 +607,7 @@ mod tests {
 
         heap.sort();
 
-        inputs.sort();
-
-        assert_eq!(heap.data, inputs);
+        assert_eq!(heap.data, expected);
     }
 
 
