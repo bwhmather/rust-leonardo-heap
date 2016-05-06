@@ -48,6 +48,10 @@ impl Layout {
         self.size
     }
 
+    pub fn is_empty(&self) -> bool {
+        return self.size == 0;
+    }
+
     pub fn push(&mut self) {
         self.size += 1;
 
@@ -160,3 +164,6 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
         (ones, Some(ones))
     }
 }
+
+
+impl<'a, T : Ord + Debug> ExactSizeIterator for IterMut<'a, T> {}

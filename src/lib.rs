@@ -150,6 +150,9 @@ impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
 }
 
 
+impl<'a, T : Ord + Debug> ExactSizeIterator for Iter<'a, T> {}
+
+
 #[derive(Debug)]
 pub struct Drain<'a, T: 'a> {
     heap: &'a mut LeonardoHeap<T>,
@@ -168,6 +171,9 @@ impl<'a, T: Ord + Debug> Iterator for Drain<'a, T>
         (self.heap.len(), Some(self.heap.len()))
     }
 }
+
+
+impl<'a, T : Ord + Debug> ExactSizeIterator for Drain<'a, T> {}
 
 
 #[derive(Debug)]
@@ -559,7 +565,7 @@ mod tests {
         }
 
         let mut outputs: Vec<i32> = Vec::new();
-        while let output = heap.pop() {
+        while let Some(output) = heap.pop() {
             outputs.push(output);
         }
 
