@@ -51,7 +51,7 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
     #[inline]
     pub fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
         let (_, children) = self.destructure();
-        return children
+        children
     }
 }
 
@@ -142,18 +142,18 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
     #[inline]
     fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
         let (_, children) = self.destructure();
-        return children
+        children
     }
 
     #[inline]
     fn children_mut(&mut self) -> Option<(SubHeapMut<T>, SubHeapMut<T>)> {
         let (_, children) = self.destructure_mut();
-        return children
+        children
     }
 
     #[inline]
     fn into_children(self) -> Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)> {
         let (_, children) = self.into_components();
-        return children
+        children
     }
 }

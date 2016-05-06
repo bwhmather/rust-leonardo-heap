@@ -51,26 +51,24 @@ impl Layout {
     pub fn push(&mut self) {
         self.size += 1;
 
-        match self.lowest_order() {
-            Some(lowest_order) => {
-                let mergeable_mask : u64 = 3 << lowest_order;
+        if let Some(lowest_order) = self.lowest_order() {
+            let mergeable_mask : u64 = 3 << lowest_order;
 
-                if (mergeable_mask & self.orders) == mergeable_mask {
-                    // lowest two sub-heaps are adjacent and car be merged
-                    // Clear the two lowest orders
-                    self.orders &= !mergeable_mask;
+            if (mergeable_mask & self.orders) == mergeable_mask {
+                // lowest two sub-heaps are adjacent and car be merged
+                // Clear the two lowest orders
+                self.orders &= !mergeable_mask;
 
-                    // Replace them with the next order up
-                    self.orders |= 1 << (lowest_order + 2);
-                } else if lowest_order == 1 {
-                    self.orders |= 1;
-                } else {
-                    self.orders |= 2;
-                }
-            }
-            None => {
+                // Replace them with the next order up
+                self.orders |= 1 << (lowest_order + 2);
+            } else if lowest_order == 1 {
+                self.orders |= 1;
+            } else {
                 self.orders |= 2;
             }
+
+        } else {
+            self.orders |= 2;
         }
     }
 
@@ -81,20 +79,17 @@ impl Layout {
 
         self.size -= 1;
 
-        match self.lowest_order() {
-            Some(lowest_order) => {
-                // Clear the order
-                let mask : u64 = 1 << lowest_order;
-                self.orders &= !mask;
+        if let Some(lowest_order) = self.lowest_order() {
+            // Clear the order
+            let mask : u64 = 1 << lowest_order;
+            self.orders &= !mask;
 
-                // If the order is not zero or one (the single element orders)
-                // then we need to split it into two heaps of size n-1 and n-2
-                if lowest_order != 0 && lowest_order != 1 {
-                    let mask : u64 = 3 << lowest_order - 2;
-                    self.orders |= mask;
-                }
+            // If the order is not zero or one (the single element orders)
+            // then we need to split it into two heaps of size n-1 and n-2
+            if lowest_order != 0 && lowest_order != 1 {
+                let mask : u64 = 3 << (lowest_order - 2);
+                self.orders |= mask;
             }
-            None => {}
         }
     }
 
