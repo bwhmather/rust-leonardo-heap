@@ -42,7 +42,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
             break;
         }
 
-        // Seap the value of the parent with the value of the largest child.
+        // Swap the value of the parent with the value of the largest child.
         std::mem::swap(this_value, next_heap.value_mut());
 
         // TODO there has to be a better pattern for unpacking to existing vars
