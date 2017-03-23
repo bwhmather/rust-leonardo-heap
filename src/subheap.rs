@@ -96,7 +96,9 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
             let snd_order = self.order - 1;
 
             let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+            let (mut snd_data, mut fst_data) = body.split_at_mut(
+                leonardo(snd_order),
+            );
 
             (value, Some((
                 SubHeapMut::new(fst_data, fst_order),
@@ -107,13 +109,17 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
-    pub fn into_components(self) -> (&'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>) {
+    pub fn into_components(self) -> (
+        &'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>,
+    ) {
         if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
             let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+            let (mut snd_data, mut fst_data) = body.split_at_mut(
+                leonardo(snd_order),
+            );
 
             (value, Some((
                 SubHeapMut::new(fst_data, fst_order),

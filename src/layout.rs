@@ -59,11 +59,11 @@ impl Layout {
             let mergeable_mask : u64 = 3 << lowest_order;
 
             if (mergeable_mask & self.orders) == mergeable_mask {
-                // lowest two sub-heaps are adjacent and car be merged
-                // Clear the two lowest orders
+                // The lowest two sub-heaps are adjacent and car be merged.
+                // Clear the two lowest orders.
                 self.orders &= !mergeable_mask;
 
-                // Replace them with the next order up
+                // Replace them with the next order up.
                 self.orders |= 1 << (lowest_order + 2);
             } else if lowest_order == 1 {
                 self.orders |= 1;
@@ -105,7 +105,9 @@ impl Layout {
         }
     }
 
-    pub fn iter<'a, T : Ord + Debug>(&self, data : &'a mut [T]) -> IterMut<'a, T> {
+    pub fn iter<'a, T : Ord + Debug>(
+        &self, data : &'a mut [T],
+    ) -> IterMut<'a, T> {
         assert_eq!(data.len(), self.size);
 
         IterMut {
@@ -129,14 +131,14 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
 
     fn next(&mut self) -> Option<SubHeapMut<'a, T>> {
         if self.orders != 0 {
-            // Records and remove the first order from the font of the bitset
-            // This is the order of the sub-heap at the start of the heap
+            // Records and remove the first order from the font of the bitset.
+            // This is the order of the sub-heap at the start of the heap.
             let order = self.orders.trailing_zeros();
             self.orders ^= 1 << order;
 
             // We need to pre-calculate the length to get around the fact that
             // the borrow checker can't yet handle borrowing in for only as
-            // long as is needed to calculate the argument to a function
+            // long as is needed to calculate the argument to a function.
             let heap_len = self.heap_data.len();
 
             // In order to avoid having more than one mutable reference to the
@@ -145,12 +147,12 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
             let mut heap_data = mem::replace(&mut self.heap_data, &mut []);
 
             // Split the heap into the part belonging to this sub-heap and all
-            // of the rest
+            // of the rest.
             let (mut rest_data, mut subheap_data) = heap_data.split_at_mut(
                 heap_len - leonardo(order)
             );
 
-            // Store what's left of the heap back in self
+            // Store what's left of the heap back in self.
             self.heap_data = rest_data;
 
             Some(SubHeapMut::new(subheap_data, order))

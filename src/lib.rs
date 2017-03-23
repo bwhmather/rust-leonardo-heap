@@ -22,7 +22,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     let (mut this_value, mut children) = heap.destructure_mut();
 
     loop {
-        // No children.  We have reached the bottom of the heap
+        // No children.  We have reached the bottom of the heap.
         if children.is_none() {
             break;
         }
@@ -37,7 +37,7 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
             snd_child
         };
 
-        // The heap property is satisfied.  No need to do anything else
+        // The heap property is satisfied.  No need to do anything else.
         if &*this_value >= next_heap.value() {
             break;
         }
@@ -73,7 +73,9 @@ fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
 }
 
 
-fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+fn balance_after_push<T: Ord + Debug>(
+    heap_data: &mut [T], layout: &layout::Layout,
+) {
     assert_eq!(heap_data.len(), layout.len());
 
     sift_down(&mut layout.iter(heap_data).next().unwrap());
@@ -81,7 +83,9 @@ fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layo
 }
 
 
-fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+fn balance_after_pop<T: Ord + Debug>(
+    heap_data: &mut [T], layout: &layout::Layout,
+) {
     {
         let mut subheap_iter = layout.iter(heap_data);
         match (subheap_iter.next(), subheap_iter.next()) {
@@ -98,7 +102,7 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layou
 
     {
         let mut subheaps_from_snd = layout.iter(heap_data);
-        // consume the first subheap
+        // Consume the first subheap.
         subheaps_from_snd.next();
 
         restring(subheaps_from_snd);
@@ -133,7 +137,7 @@ impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
 
             let (result, rest_data) = heap_data.split_last_mut().unwrap();
 
-            // Store what's left of the heap back in self
+            // Store what's left of the heap back in self.
             self.heap_data = rest_data;
 
             balance_after_pop(self.heap_data, &self.layout);
@@ -337,7 +341,11 @@ mod tests {
 
     use layout;
     use subheap::SubHeapMut;
-    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push, balance_after_pop};
+    use {
+        LeonardoHeap, Iter,
+        restring, sift_down,
+        balance_after_push, balance_after_pop,
+    };
 
     #[test]
     fn test_sift_down_zero() {
@@ -412,29 +420,39 @@ mod tests {
     #[test]
     fn test_balance_after_push_first() {
         let mut subheap_data = [1];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(1));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(1),
+        );
         assert_eq!(subheap_data, [1]);
     }
 
     #[test]
     fn test_balance_after_push_second() {
         let mut subheap_data = [1, 2];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(2),
+        );
         assert_eq!(subheap_data, [1, 2]);
 
         let mut subheap_data = [2, 1];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(2),
+        );
         assert_eq!(subheap_data, [1, 2]);
     }
 
     #[test]
     fn test_balance_after_push_merge() {
         let mut subheap_data = [1, 2, 3];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(3),
+        );
         assert_eq!(subheap_data, [1, 2, 3]);
 
         let mut subheap_data = [1, 3, 2];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(3),
+        );
         assert_eq!(subheap_data, [1, 2, 3]);
     }
 
@@ -442,7 +460,9 @@ mod tests {
     #[should_panic]
     fn test_balance_after_push_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(12));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(12),
+        );
     }
 
     #[test]
@@ -531,7 +551,9 @@ mod tests {
     #[should_panic]
     fn test_balance_after_pop_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
-        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(12));
+        balance_after_pop(
+            &mut subheap_data, &layout::Layout::new_from_len(12),
+        );
     }
 
     #[test]
