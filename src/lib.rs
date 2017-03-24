@@ -8,6 +8,9 @@
 //! A binary heap structure supporting fast in-place partial sorting.
 //!
 //! This is structure is the core of Dijkstra's Smoothsort algorithm.
+#[cfg(test)]
+extern crate rand;
+
 mod leonardo;
 mod subheap;
 mod layout;
@@ -335,9 +338,8 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
 #[cfg(test)]
 mod tests {
-    extern crate rand;
-
-    use self::rand::Rng;
+    use rand;
+    use rand::Rng;
 
     use layout;
     use subheap::SubHeapMut;
