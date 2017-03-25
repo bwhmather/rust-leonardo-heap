@@ -17,7 +17,97 @@ const LEONARDO_NUMBERS: [u64; 64] = [
     21220419715445,
 ];
 
+/// Lookup table based implementation of function for determining the nth
+/// leonardo number.
+fn leonardo_lookup(order: u32) -> usize {
+    LEONARDO_NUMBERS[order as usize] as usize
+}
+
+/// Closed form implementation of function for determining the nth leonardo
+/// number
+fn leonardo_closed(order: u32) -> usize {
+    // TODO this starts to diverge due to precision issues at higher orders.
+    // Need to figure out how far it is accurate, and raise an assertion error.
+    return (
+        2.0 * (
+            ((1.0 + 5.0f64.sqrt()) / 2.0).powf(order as f64 + 1.0) -
+            ((1.0 - 5.0f64.sqrt()) / 2.0).powf(order as f64 + 1.0)
+        ) / 5.0f64.sqrt()
+    ).floor() as usize - 1;
+}
+
+/// Iterative function for determining the nth leonardo number.
+fn leonardo_naive(order: u32) -> usize {
+    if order < 2 {
+        return 1;
+    }
+
+    let mut n_minus_2 = 1;
+    let mut n_minus_1 = 1;
+
+    let mut i = 2;
+    loop {
+        let n = n_minus_2 + n_minus_1 + 1;
+        if i == order {
+            return n;
+        }
+        i += 1;
+        n_minus_2 = n_minus_1;
+        n_minus_1 = n;
+    }
+}
+
 
 pub fn leonardo(order: u32) -> usize {
-    LEONARDO_NUMBERS[order as usize] as usize
+    #[inline]
+    return leonardo_lookup(order);
+}
+
+#[cfg(test)]
+mod tests {
+    use test::Bencher;
+
+    use rand::distributions::{IndependentSample, Range};
+    use rand::Rng;
+    use rand;
+
+    use leonardo::{leonardo, leonardo_lookup, leonardo_closed, leonardo_naive};
+
+    #[test]
+    fn test_leonardo_lookup_matches() {
+        for order in 0..64 {
+            assert_eq!(leonardo_lookup(order), leonardo_naive(order));
+        }
+    }
+
+    #[test]
+    fn test_leonardo_closed_matches() {
+        for order in 0..70 {
+            assert_eq!(leonardo_closed(order), leonardo_naive(order));
+        }
+    }
+
+    #[bench]
+    fn bench_leonardo_lookup(b: &mut Bencher) {
+        let mut rng = rand::IsaacRng::new_unseeded();
+        let range = Range::new(0, 64);
+
+        b.iter(|| leonardo_lookup(range.ind_sample(&mut rng)));
+    }
+
+    #[bench]
+    fn bench_leonardo_closed(b: &mut Bencher) {
+        let mut rng = rand::IsaacRng::new_unseeded();
+        let range = Range::new(0, 64);
+
+        b.iter(|| leonardo_closed(range.ind_sample(&mut rng)));
+    }
+
+    #[bench]
+    fn bench_leonardo_naive(b: &mut Bencher) {
+        let mut rng = rand::IsaacRng::new_unseeded();
+        let range = Range::new(0, 64);
+
+        b.iter(|| leonardo_naive(range.ind_sample(&mut rng)));
+    }
 }
