@@ -8,8 +8,11 @@
 //! A binary heap structure supporting fast in-place partial sorting.
 //!
 //! This is structure is the core of Dijkstra's Smoothsort algorithm.
+
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate test;
 
 mod leonardo;
 mod subheap;

@@ -14,3 +14,4 @@ doctest = false
 
 [dev-dependencies]
 rand = "0.3"
+rustc-test = "*"  # For benchmarking support
