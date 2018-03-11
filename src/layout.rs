@@ -162,11 +162,11 @@ impl<'a, T : Ord + Debug> Iterator for IterMut<'a, T>
             // In order to avoid having more than one mutable reference to the
             // heap at any one time,we have to temporarily replace it in self
             // with a placeholder value.
-            let mut heap_data = mem::replace(&mut self.heap_data, &mut []);
+            let heap_data = mem::replace(&mut self.heap_data, &mut []);
 
             // Split the heap into the part belonging to this sub-heap and all
             // of the rest.
-            let (mut rest_data, mut subheap_data) = heap_data.split_at_mut(
+            let (rest_data, subheap_data) = heap_data.split_at_mut(
                 heap_len - leonardo(order)
             );
 

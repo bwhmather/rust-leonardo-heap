@@ -106,8 +106,8 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
-            let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(
+            let (value, body) = self.data.split_last_mut().unwrap();
+            let (snd_data, fst_data) = body.split_at_mut(
                 leonardo(snd_order),
             );
 
@@ -129,8 +129,8 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
-            let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(
+            let (value, body) = self.data.split_last_mut().unwrap();
+            let (snd_data, fst_data) = body.split_at_mut(
                 leonardo(snd_order),
             );
 

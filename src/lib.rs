@@ -135,7 +135,7 @@ impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
             // In order to avoid having more than one mutable reference to the
             // heap at any one time,we have to temporarily replace it in self
             // with a placeholder value.
-            let mut heap_data = std::mem::replace(&mut self.heap_data, &mut []);
+            let heap_data = std::mem::replace(&mut self.heap_data, &mut []);
 
             let (result, rest_data) = heap_data.split_last_mut().unwrap();
 
