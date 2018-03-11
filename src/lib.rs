@@ -19,7 +19,8 @@ use std::fmt::Debug;
 
 use subheap::SubHeapMut;
 
-
+/// Recursively move a new top element down the heap to restore heap order
+/// within a subheap.
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     let (mut this_value, mut children) = heap.destructure_mut();
 
@@ -57,7 +58,10 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     }
 }
 
-
+/// This function will restore the string property (the property that the head
+/// of each each top-level subheap should contain a value greater than the head
+/// of the next subheap down after the head of the first subheap has been
+/// changed.  It assumes that the heap property alread holds for all subheaps.
 fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
     if let Some(mut this_subheap) = subheap_iter.next() {
         for mut next_subheap in subheap_iter {
@@ -67,6 +71,11 @@ fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
 
             std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
 
+            // The head of `next_subheap` is now lower than it was previously
+            // and so may need to be moved down.  As the new value at the head
+            // of `this_subheap` was larger than the old value it will already
+            // be in heap order so there is no need to do the same for
+            // `this_subheap`.
             sift_down(&mut next_subheap);
 
             this_subheap = next_subheap;
@@ -74,17 +83,22 @@ fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
     }
 }
 
-
+/// Restores the heap property of the first subheap and the string property of
+/// the heap as a whole after a push.
 fn balance_after_push<T: Ord + Debug>(
     heap_data: &mut [T], layout: &layout::Layout,
 ) {
     assert_eq!(heap_data.len(), layout.len());
 
+    // Move the highest value in the first subheap to the top.
     sift_down(&mut layout.iter(heap_data).next().unwrap());
+
+    // Swap it down through the other top-level subheaps until the string
+    // property is restored.
     restring(layout.iter(heap_data));
 }
 
-
+/// Restores the string property after a pop.
 fn balance_after_pop<T: Ord + Debug>(
     heap_data: &mut [T], layout: &layout::Layout,
 ) {
