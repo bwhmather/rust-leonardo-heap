@@ -15,7 +15,7 @@ pub struct SubHeap<'a, T: 'a> {
     pub order: u32,
 }
 
-
+#[allow(dead_code)]
 impl<'a, T: Ord + Debug> SubHeap<'a, T> {
     pub fn new(data: &[T], order: u32) -> SubHeap<T> {
         assert_eq!(data.len(), leonardo(order));
@@ -68,6 +68,7 @@ pub struct SubHeapMut<'a, T: 'a> {
 }
 
 
+#[allow(dead_code)]
 impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
     pub fn new(data: &mut [T], order: u32) -> SubHeapMut<T> {
         assert_eq!(data.len(), leonardo(order));

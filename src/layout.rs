@@ -58,11 +58,6 @@ impl Layout {
         self.size
     }
 
-    /// Returns true if this layout describes a heap containing zero items.
-    pub fn is_empty(&self) -> bool {
-        return self.size == 0;
-    }
-
     /// Updates the layout to account for one item being added to the described
     /// data.
     pub fn push(&mut self) {
