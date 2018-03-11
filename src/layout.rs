@@ -11,10 +11,19 @@ use std::mem;
 use leonardo::leonardo;
 use subheap::SubHeapMut;
 
-
+/// The `Layout` structure encapsulates the logic and state describing how a
+/// heap is broken down into subheaps.
+///
+/// A heap is made up of a number of subheaps of increasing order.
+/// When three adjacent subheaps have contiguous orders they are merged into one
+/// subheap of the next order.
 #[derive(Clone, Debug)]
 pub struct Layout {
+    /// A bitmask describing what order of subheaps are present at the top level
+    /// of this heap.
     orders: u64,
+
+    /// The number of values in the heap that this layout describes.
     size: usize,
 }
 
@@ -44,14 +53,18 @@ impl Layout {
         }
     }
 
+    /// Returns the number of items in the data described by this layout.
     pub fn len(&self) -> usize {
         self.size
     }
 
+    /// Returns true if this layout describes a heap containing zero items.
     pub fn is_empty(&self) -> bool {
         return self.size == 0;
     }
 
+    /// Updates the layout to account for one item being added to the described
+    /// data.
     pub fn push(&mut self) {
         self.size += 1;
 
@@ -59,7 +72,7 @@ impl Layout {
             let mergeable_mask : u64 = 3 << lowest_order;
 
             if (mergeable_mask & self.orders) == mergeable_mask {
-                // The lowest two sub-heaps are adjacent and car be merged.
+                // The lowest two sub-heaps are adjacent and can be merged.
                 // Clear the two lowest orders.
                 self.orders &= !mergeable_mask;
 
@@ -76,6 +89,8 @@ impl Layout {
         }
     }
 
+    /// Updates the layout to account for one item being removed from the
+    /// described data.
     pub fn pop(&mut self) {
         if self.size == 0 {
             return;
@@ -97,6 +112,7 @@ impl Layout {
         }
     }
 
+    /// Returns the order of the smallest subheap.
     #[inline]
     pub fn lowest_order(&self) -> Option<u32> {
         match self.orders.trailing_zeros() {
@@ -105,10 +121,12 @@ impl Layout {
         }
     }
 
+    /// Breaks the data into top-level subheaps to be iterated over in order
+    /// from smallest to largest.
     pub fn iter<'a, T : Ord + Debug>(
         &self, data : &'a mut [T],
     ) -> IterMut<'a, T> {
-        assert_eq!(data.len(), self.size);
+        assert_eq!(data.len(), self.len());
 
         IterMut {
             heap_data: data,
