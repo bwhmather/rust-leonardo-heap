@@ -17,7 +17,6 @@ mod layout;
 
 use std::fmt::Debug;
 
-use leonardo::leonardo;
 use subheap::SubHeapMut;
 
 
@@ -343,11 +342,7 @@ mod tests {
 
     use layout;
     use subheap::SubHeapMut;
-    use {
-        LeonardoHeap, Iter,
-        restring, sift_down,
-        balance_after_push, balance_after_pop,
-    };
+    use {LeonardoHeap, sift_down, balance_after_push, balance_after_pop};
 
     #[test]
     fn test_sift_down_zero() {

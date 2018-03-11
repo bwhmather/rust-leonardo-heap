@@ -66,11 +66,7 @@ pub fn leonardo(order: u32) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use rand::distributions::{IndependentSample, Range};
-    use rand::Rng;
-    use rand;
-
-    use leonardo::{leonardo, leonardo_lookup, leonardo_closed, leonardo_naive};
+    use leonardo::{leonardo_lookup, leonardo_closed, leonardo_naive};
 
     #[test]
     fn test_leonardo_lookup_matches() {
