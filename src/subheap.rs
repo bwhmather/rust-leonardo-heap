@@ -15,7 +15,7 @@ pub struct SubHeap<'a, T: 'a> {
     pub order: u32,
 }
 
-
+#[allow(dead_code)]
 impl<'a, T: Ord + Debug> SubHeap<'a, T> {
     pub fn new(data: &[T], order: u32) -> SubHeap<T> {
         assert_eq!(data.len(), leonardo(order));
@@ -26,6 +26,8 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
         }
     }
 
+    /// Unpacks the head and, if they exist, the two smaller subheaps that make
+    /// up the rest of this subheap.
     pub fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
         if self.order > 1 {
             let fst_order = self.order - 2;
@@ -43,15 +45,18 @@ impl<'a, T: Ord + Debug> SubHeap<'a, T> {
         }
     }
 
+    /// Returns a reference to the value at the head of the subheap.
     #[inline]
     pub fn value(&self) -> &T {
         self.data.last().unwrap()
     }
 
+    /// If the subheap is of third order or greater returns references to the
+    /// two child subheaps containing all values below the head.
     #[inline]
     pub fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
         let (_, children) = self.destructure();
-        return children
+        children
     }
 }
 
@@ -63,6 +68,7 @@ pub struct SubHeapMut<'a, T: 'a> {
 }
 
 
+#[allow(dead_code)]
 impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
     pub fn new(data: &mut [T], order: u32) -> SubHeapMut<T> {
         assert_eq!(data.len(), leonardo(order));
@@ -73,6 +79,9 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
+    /// Returns references to the head and, if they exist, the two smaller
+    /// subheaps that make up the rest of this subheap allowing them to be read
+    /// simultaneously.
     pub fn destructure(&self) -> (&T, Option<(SubHeap<T>, SubHeap<T>)>) {
         if self.order > 1 {
             let fst_order = self.order - 2;
@@ -90,13 +99,18 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
+    /// Returns mutable references to the head and, if this subheap is of third
+    /// order or greater, the two smaller subheaps that make up the rest
+    /// allowing them to be read and modified simultaneously.
     pub fn destructure_mut(&mut self) -> (&mut T, Option<(SubHeapMut<T>, SubHeapMut<T>)>) {
         if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
-            let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+            let (value, body) = self.data.split_last_mut().unwrap();
+            let (snd_data, fst_data) = body.split_at_mut(
+                leonardo(snd_order),
+            );
 
             (value, Some((
                 SubHeapMut::new(fst_data, fst_order),
@@ -107,13 +121,19 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
-    pub fn into_components(self) -> (&'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>) {
+    /// Breaks the subheap up into its constituent parts: the head and for
+    /// subheaps of third order or greater the two child subheaps.
+    pub fn into_components(self) -> (
+        &'a mut T, Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)>,
+    ) {
         if self.order > 1 {
             let fst_order = self.order - 2;
             let snd_order = self.order - 1;
 
-            let (mut value, mut body) = self.data.split_last_mut().unwrap();
-            let (mut snd_data, mut fst_data) = body.split_at_mut(leonardo(snd_order));
+            let (value, body) = self.data.split_last_mut().unwrap();
+            let (snd_data, fst_data) = body.split_at_mut(
+                leonardo(snd_order),
+            );
 
             (value, Some((
                 SubHeapMut::new(fst_data, fst_order),
@@ -124,16 +144,20 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
         }
     }
 
+    /// Returns a reference to the value at the head of the subheap.
     #[inline]
     pub fn value(&self) -> &T {
         self.data.last().unwrap()
     }
 
+    /// Returns a mutable reference to the value at the head of the subheap.
     #[inline]
     pub fn value_mut(&mut self) -> &mut T {
         self.data.last_mut().unwrap()
     }
 
+    /// Consumes a subheap and returns a mutable reference to the value at the
+    /// head of the data that it points to.
     #[inline]
     pub fn into_value(self) -> &'a mut T {
         self.data.last_mut().unwrap()
@@ -142,18 +166,18 @@ impl<'a, T: Ord + Debug> SubHeapMut<'a, T> {
     #[inline]
     fn children(&self) -> Option<(SubHeap<T>, SubHeap<T>)> {
         let (_, children) = self.destructure();
-        return children
+        children
     }
 
     #[inline]
     fn children_mut(&mut self) -> Option<(SubHeapMut<T>, SubHeapMut<T>)> {
         let (_, children) = self.destructure_mut();
-        return children
+        children
     }
 
     #[inline]
     fn into_children(self) -> Option<(SubHeapMut<'a, T>, SubHeapMut<'a, T>)> {
         let (_, children) = self.into_components();
-        return children
+        children
     }
 }

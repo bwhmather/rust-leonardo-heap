@@ -8,21 +8,24 @@
 //! A binary heap structure supporting fast in-place partial sorting.
 //!
 //! This is structure is the core of Dijkstra's Smoothsort algorithm.
+#[cfg(test)]
+extern crate rand;
+
 mod leonardo;
 mod subheap;
 mod layout;
 
 use std::fmt::Debug;
 
-use leonardo::leonardo;
 use subheap::SubHeapMut;
 
-
+/// Recursively move a new top element down the heap to restore heap order
+/// within a subheap.
 fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     let (mut this_value, mut children) = heap.destructure_mut();
 
     loop {
-        // No children.  We have reached the bottom of the heap
+        // No children.  We have reached the bottom of the heap.
         if children.is_none() {
             break;
         }
@@ -37,12 +40,12 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
             snd_child
         };
 
-        // The heap property is satisfied.  No need to do anything else
+        // The heap property is satisfied.  No need to do anything else.
         if &*this_value >= next_heap.value() {
             break;
         }
 
-        // Seap the value of the parent with the value of the largest child.
+        // Swap the value of the parent with the value of the largest child.
         std::mem::swap(this_value, next_heap.value_mut());
 
         // TODO there has to be a better pattern for unpacking to existing vars
@@ -55,37 +58,50 @@ fn sift_down<T: Ord + Debug>(heap: &mut SubHeapMut<T>) {
     }
 }
 
-
+/// This function will restore the string property (the property that the head
+/// of each each top-level subheap should contain a value greater than the head
+/// of the next subheap down after the head of the first subheap has been
+/// changed.  It assumes that the heap property alread holds for all subheaps.
 fn restring<T : Ord + Debug>(mut subheap_iter: layout::IterMut<T>) {
-    match subheap_iter.next() {
-        Some(mut this_subheap) => {
-
-            for mut next_subheap in subheap_iter {
-                if next_subheap.value() <= this_subheap.value() {
-                    break;
-                }
-
-                std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
-
-                sift_down(&mut next_subheap);
-
-                this_subheap = next_subheap;
+    if let Some(mut this_subheap) = subheap_iter.next() {
+        for mut next_subheap in subheap_iter {
+            if next_subheap.value() <= this_subheap.value() {
+                break;
             }
+
+            std::mem::swap(next_subheap.value_mut(), this_subheap.value_mut());
+
+            // The head of `next_subheap` is now lower than it was previously
+            // and so may need to be moved down.  As the new value at the head
+            // of `this_subheap` was larger than the old value it will already
+            // be in heap order so there is no need to do the same for
+            // `this_subheap`.
+            sift_down(&mut next_subheap);
+
+            this_subheap = next_subheap;
         }
-        None => {}
     }
 }
 
-
-fn balance_after_push<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+/// Restores the heap property of the first subheap and the string property of
+/// the heap as a whole after a push.
+fn balance_after_push<T: Ord + Debug>(
+    heap_data: &mut [T], layout: &layout::Layout,
+) {
     assert_eq!(heap_data.len(), layout.len());
 
+    // Move the highest value in the first subheap to the top.
     sift_down(&mut layout.iter(heap_data).next().unwrap());
+
+    // Swap it down through the other top-level subheaps until the string
+    // property is restored.
     restring(layout.iter(heap_data));
 }
 
-
-fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layout) {
+/// Restores the string property after a pop.
+fn balance_after_pop<T: Ord + Debug>(
+    heap_data: &mut [T], layout: &layout::Layout,
+) {
     {
         let mut subheap_iter = layout.iter(heap_data);
         match (subheap_iter.next(), subheap_iter.next()) {
@@ -102,7 +118,7 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layou
 
     {
         let mut subheaps_from_snd = layout.iter(heap_data);
-        // consume the first subheap
+        // Consume the first subheap.
         subheaps_from_snd.next();
 
         restring(subheaps_from_snd);
@@ -116,7 +132,7 @@ fn balance_after_pop<T: Ord + Debug>(heap_data: &mut [T], layout: &layout::Layou
 
 
 #[derive(Debug)]
-pub struct Iter<'a, T: 'a> {
+struct Iter<'a, T: 'a> {
     heap_data: &'a mut [T],
     layout: layout::Layout,
 }
@@ -133,11 +149,11 @@ impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
             // In order to avoid having more than one mutable reference to the
             // heap at any one time,we have to temporarily replace it in self
             // with a placeholder value.
-            let mut heap_data = std::mem::replace(&mut self.heap_data, &mut []);
+            let heap_data = std::mem::replace(&mut self.heap_data, &mut []);
 
             let (result, rest_data) = heap_data.split_last_mut().unwrap();
 
-            // Store what's left of the heap back in self
+            // Store what's left of the heap back in self.
             self.heap_data = rest_data;
 
             balance_after_pop(self.heap_data, &self.layout);
@@ -154,8 +170,11 @@ impl<'a, T : Ord + Debug> Iterator for Iter<'a, T>
 }
 
 
+impl<'a, T : Ord + Debug> ExactSizeIterator for Iter<'a, T> {}
+
+
 #[derive(Debug)]
-pub struct Drain<'a, T: 'a> {
+struct Drain<'a, T: 'a> {
     heap: &'a mut LeonardoHeap<T>,
 }
 
@@ -172,6 +191,9 @@ impl<'a, T: Ord + Debug> Iterator for Drain<'a, T>
         (self.heap.len(), Some(self.heap.len()))
     }
 }
+
+
+impl<'a, T : Ord + Debug> ExactSizeIterator for Drain<'a, T> {}
 
 
 #[derive(Debug)]
@@ -309,7 +331,9 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     ///
     /// Will lazily sort the top elements of the heap in-place as it is
     /// consumed.
-    pub fn iter(&mut self) -> Iter<T> {
+    pub fn iter(
+        &mut self
+    ) -> impl Iterator<Item = &T> + ExactSizeIterator<Item = &T> {
         Iter {
             heap_data: self.data.as_mut_slice(),
             layout: self.layout.clone(),
@@ -318,7 +342,9 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
     /// Returns an iterator that removes and returns elements from the top of
     /// the heap.
-    pub fn drain(&mut self) -> Drain<T> {
+    pub fn drain<'a>(
+        &'a mut self
+    ) -> impl Iterator<Item = T> + ExactSizeIterator<Item = T> + 'a {
         // TODO should drain clear the heap if not fully consumed
         Drain {
             heap: self,
@@ -329,13 +355,12 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
 #[cfg(test)]
 mod tests {
-    extern crate rand;
-
-    use self::rand::Rng;
+    use rand;
+    use rand::Rng;
 
     use layout;
     use subheap::SubHeapMut;
-    use {LeonardoHeap, Iter, restring, sift_down, balance_after_push, balance_after_pop};
+    use {LeonardoHeap, sift_down, balance_after_push, balance_after_pop};
 
     #[test]
     fn test_sift_down_zero() {
@@ -410,29 +435,39 @@ mod tests {
     #[test]
     fn test_balance_after_push_first() {
         let mut subheap_data = [1];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(1));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(1),
+        );
         assert_eq!(subheap_data, [1]);
     }
 
     #[test]
     fn test_balance_after_push_second() {
         let mut subheap_data = [1, 2];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(2),
+        );
         assert_eq!(subheap_data, [1, 2]);
 
         let mut subheap_data = [2, 1];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(2));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(2),
+        );
         assert_eq!(subheap_data, [1, 2]);
     }
 
     #[test]
     fn test_balance_after_push_merge() {
         let mut subheap_data = [1, 2, 3];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(3),
+        );
         assert_eq!(subheap_data, [1, 2, 3]);
 
         let mut subheap_data = [1, 3, 2];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(3));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(3),
+        );
         assert_eq!(subheap_data, [1, 2, 3]);
     }
 
@@ -440,7 +475,9 @@ mod tests {
     #[should_panic]
     fn test_balance_after_push_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
-        balance_after_push(&mut subheap_data, &layout::Layout::new_from_len(12));
+        balance_after_push(
+            &mut subheap_data, &layout::Layout::new_from_len(12),
+        );
     }
 
     #[test]
@@ -529,7 +566,9 @@ mod tests {
     #[should_panic]
     fn test_balance_after_pop_mismatched_lengths() {
         let mut subheap_data = [1, 2, 3, 4];
-        balance_after_pop(&mut subheap_data, &layout::Layout::new_from_len(12));
+        balance_after_pop(
+            &mut subheap_data, &layout::Layout::new_from_len(12),
+        );
     }
 
     #[test]
@@ -563,15 +602,8 @@ mod tests {
         }
 
         let mut outputs: Vec<i32> = Vec::new();
-        loop {
-            match heap.pop() {
-                Some(output) => {
-                    outputs.push(output);
-                }
-                None => {
-                    break;
-                }
-            }
+        while let Some(output) = heap.pop() {
+            outputs.push(output);
         }
 
         assert_eq!(outputs, expected);
