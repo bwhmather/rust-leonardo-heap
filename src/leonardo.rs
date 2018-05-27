@@ -19,12 +19,14 @@ const LEONARDO_NUMBERS: [u64; 64] = [
 
 /// Lookup table based implementation of function for determining the nth
 /// leonardo number.
+#[inline]
 fn leonardo_lookup(order: u32) -> usize {
     LEONARDO_NUMBERS[order as usize] as usize
 }
 
 /// Closed form implementation of function for determining the nth leonardo
 /// number.
+#[inline]
 fn leonardo_closed(order: u32) -> usize {
     // TODO this starts to diverge due to precision issues at higher orders.
     // Need to figure out how far it is accurate, and raise an assertion error.
@@ -37,6 +39,7 @@ fn leonardo_closed(order: u32) -> usize {
 }
 
 /// Iterative function for determining the nth leonardo number.
+#[inline]
 fn leonardo_naive(order: u32) -> usize {
     if order < 2 {
         return 1;
@@ -60,7 +63,6 @@ fn leonardo_naive(order: u32) -> usize {
 /// Returns the nth leonardo number.
 /// Only defined for order less than 64.
 pub fn leonardo(order: u32) -> usize {
-    #[inline]
     return leonardo_lookup(order);
 }
 
