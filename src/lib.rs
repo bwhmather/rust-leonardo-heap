@@ -132,7 +132,7 @@ fn balance_after_pop<T: Ord + Debug>(
 
 
 #[derive(Debug)]
-pub struct Iter<'a, T: 'a> {
+struct Iter<'a, T: 'a> {
     heap_data: &'a mut [T],
     layout: layout::Layout,
 }
@@ -174,7 +174,7 @@ impl<'a, T : Ord + Debug> ExactSizeIterator for Iter<'a, T> {}
 
 
 #[derive(Debug)]
-pub struct Drain<'a, T: 'a> {
+struct Drain<'a, T: 'a> {
     heap: &'a mut LeonardoHeap<T>,
 }
 
@@ -331,7 +331,9 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
     ///
     /// Will lazily sort the top elements of the heap in-place as it is
     /// consumed.
-    pub fn iter(&mut self) -> Iter<T> {
+    pub fn iter(
+        &mut self
+    ) -> impl Iterator<Item = &T> + ExactSizeIterator<Item = &T> {
         Iter {
             heap_data: self.data.as_mut_slice(),
             layout: self.layout.clone(),
@@ -340,7 +342,9 @@ impl<T: Ord + Debug> LeonardoHeap<T> {
 
     /// Returns an iterator that removes and returns elements from the top of
     /// the heap.
-    pub fn drain(&mut self) -> Drain<T> {
+    pub fn drain<'a>(
+        &'a mut self
+    ) -> impl Iterator<Item = T> + ExactSizeIterator<Item = T> + 'a {
         // TODO should drain clear the heap if not fully consumed
         Drain {
             heap: self,
